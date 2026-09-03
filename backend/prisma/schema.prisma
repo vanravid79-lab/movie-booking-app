@@ -1,0 +1,91 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum CinemaStatus {
+  Active
+  Inactive
+  Renovating
+  Closed
+}
+
+enum HallStatus {
+  Active
+  Inactive
+  Maintenance
+  Cleaning
+}
+
+enum ScheduleStatus {
+  Scheduled
+  Cancelled
+  Completed
+}
+
+// ==========================================
+// CINEMA
+// ==========================================
+
+model Cinema {
+  cinema_id       Int          @id @default(autoincrement())
+  cinema_name     String       @db.VarChar(150)
+  cinema_location String       @db.VarChar(255)
+  cinema_phone    String?      @db.VarChar(20)
+  cinema_status   CinemaStatus @default(Active)
+
+  halls Hall[]
+
+  @@map("cinema")
+}
+
+// ==========================================
+// HALL
+// ==========================================
+
+model Hall {
+  hall_id       Int        @id @default(autoincrement())
+  cinema_id     Int
+  hall_name     String     @db.VarChar(100)
+  hall_type     String     @default("Standard") @db.VarChar(50)
+  hall_capacity Int        @default(100)
+  hall_status   HallStatus @default(Active)
+
+  cinema Cinema @relation(fields: [cinema_id], references: [cinema_id], onDelete: Cascade)
+
+  schedules Schedule[]
+
+  @@unique([cinema_id, hall_name])
+  @@index([cinema_id])
+  @@map("hall")
+}
+
+// ==========================================
+// SCHEDULE
+// ==========================================
+
+model Schedule {
+  schedule_id   Int            @id @default(autoincrement())
+  movie_id      Int
+  hall_id       Int
+  schedule_date DateTime       @db.Date
+  start_time    DateTime       @db.Time
+  end_time      DateTime       @db.Time
+  ticket_price  Decimal        @db.Decimal(10, 2)
+  status        ScheduleStatus @default(Scheduled)
+
+  hall Hall @relation(fields: [hall_id], references: [hall_id], onDelete: Cascade)
+
+  @@index([movie_id, schedule_date])
+  @@index([hall_id, schedule_date])
+  @@index([schedule_date, start_time])
+  @@map("schedule")
+}
