@@ -214,44 +214,69 @@ export default function MovieDetail() {
   }, [id]);
 
   // ==========================================
-  // FETCH ALL SHOWTIMES FROM BACKEND
+  // FETCH SHOWTIMES FROM BACKEND & REAL-TIME SSE
   // ==========================================
   useEffect(() => {
-    const controller = new AbortController();
+    if (!id || id === "all" || id === "all1") {
+      return;
+    }
 
     const fetchShowtimes = async () => {
       try {
         setShowtimesLoading(true);
-
         const response = await fetch(
-          `${API_URL}/movies/schedules/all?date=${selectedDate.id}`,
-          {
-            signal: controller.signal,
-            headers: { Accept: "application/json" },
-          },
+          `${API_URL}/movies/${id}?date=${selectedDate.id}`,
         );
 
-        const data = await response.json();
         if (!response.ok) {
-          throw new Error(
-            data.message || `Failed to fetch showtimes (${response.status})`,
-          );
+          setShowtimes([]);
+          return;
         }
 
-        const allShowtimes: CinemaShowtime[] = data.showtimes ?? data ?? [];
-        setShowtimes(allShowtimes);
+        const result = await response.json();
+        const showtimesData = Array.isArray(result)
+          ? result
+          : (result.showtimes ?? []);
+
+        setShowtimes(showtimesData);
       } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") return;
+        console.error("Failed to fetch showtimes:", error);
         setShowtimes([]);
       } finally {
         setShowtimesLoading(false);
       }
     };
 
+    // 1. Fetch immediately on component mount or date change
     fetchShowtimes();
 
-    return () => controller.abort();
-  }, [selectedDate.id]);
+    // 2. Setup Server-Sent Events for real-time schedule pushes
+    const eventSource = new EventSource(`${API_URL}/realtime/schedules`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "connected") {
+          console.log("Real-time schedule connection established.");
+          return;
+        }
+
+        console.log("Schedule changed, refreshing showtimes:", data);
+        fetchShowtimes();
+      } catch (error) {
+        console.error("Invalid SSE message:", error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("SSE connection error:", error);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [id, selectedDate.id]);
 
   // ==========================================
   // RENDER LOADING / ERROR
@@ -268,7 +293,7 @@ export default function MovieDetail() {
   if (movieError || !movie) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-500">
-        {movieError || "Movie not found."}
+        {movieError}
       </div>
     );
   }
