@@ -60,8 +60,6 @@ router.get("/:id", async (req: Request, res: Response) => {
           gte: startOfDay,
           lte: endOfDay,
         },
-
-        status: "Scheduled",
       },
 
       include: {

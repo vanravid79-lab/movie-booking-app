@@ -26,7 +26,7 @@ function AdminLayout({
   onNavigate,
 }: AdminLayoutProps) {
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen bg-[#121217] text-slate-100">
       <AdminSidebar onLogout={onLogout} onNavigate={onNavigate} />
 
       <div className="flex-1 flex flex-col min-w-0">

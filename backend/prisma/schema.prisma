@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -380,6 +380,8 @@ model User {
   user_gender   UserGender?
   user_phone    String?      @db.VarChar(20)
   user_email    String?      @unique @db.VarChar(150)
+  user_password String?      @db.VarChar(255)
+  user_role     UserRole?    @default(User)
   created_at    DateTime?    @default(now())
 
   bookings      Booking[]
@@ -505,3 +507,8 @@ enum UserGender {
   Female
   Other
 }
+
+enum UserRole {
+  Admin
+  User
+}

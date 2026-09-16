@@ -1,5 +1,5 @@
 ﻿import { Navbar, NavbarCollapse, NavbarToggle } from "flowbite-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import { IoSearchSharp } from "react-icons/io5";
@@ -11,8 +11,9 @@ import { FiLogOut } from "react-icons/fi";
 export function NavbarCom() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  useEffect(() => {
+  const syncUser = () => {
     const userStr = localStorage.getItem("cambo_user");
     if (userStr) {
       try {
@@ -20,8 +21,20 @@ export function NavbarCom() {
       } catch (e) {
         setCurrentUser(null);
       }
+    } else {
+      setCurrentUser(null);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    syncUser();
+
+    // Listen to storage and custom auth state changes
+    window.addEventListener("storage", syncUser);
+    return () => {
+      window.removeEventListener("storage", syncUser);
+    };
+  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("cambo_token");
@@ -56,7 +69,7 @@ export function NavbarCom() {
           </span>
         </Link>
 
-        {/* Right: Ticket, User / Admin / Login, Notification, Avatar */}
+        {/* Right: Ticket, User Profile / Admin / Login, Notification */}
         <div className="flex items-center gap-3">
           <Link
             to="/tickets"
@@ -68,30 +81,34 @@ export function NavbarCom() {
 
           {currentUser ? (
             <div className="flex items-center gap-2">
-              {currentUser.role === "admin" ? (
+              {currentUser.role === "admin" && (
                 <Link
                   to="/admin/schedules"
-                  className="rounded-full bg-amber-600/20 border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-600/30"
+                  className="rounded-full bg-amber-600/20 border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-600/30 transition"
                 >
                   Admin Panel
                 </Link>
-              ) : null}
+              )}
 
+              {/* Profile Link Button */}
               <Link
                 to="/user"
-                aria-label="User account"
-                className="flex items-center gap-2 rounded-full bg-gradient-to-br from-red-800 to-red-950 px-3 py-1.5 text-xs font-medium text-gray-200 transition hover:opacity-90"
+                title="View Personal Profile"
+                className="flex items-center gap-2 rounded-full bg-gradient-to-br from-red-800 to-red-950 px-3.5 py-1.5 text-xs font-semibold text-gray-100 transition hover:from-red-700 hover:to-red-900 border border-red-500/30"
               >
-                <FaRegUser className="h-3 w-3" />
-                <span>{currentUser.name || "Profile"}</span>
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white uppercase">
+                  {currentUser.name ? currentUser.name.charAt(0) : "U"}
+                </div>
+                <span>{currentUser.name}</span>
               </Link>
 
+              {/* Logout Button */}
               <button
                 onClick={handleLogout}
-                title="Logout"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800/80 text-zinc-400 hover:text-white hover:border-zinc-500 transition"
+                title="Sign Out"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800/80 text-zinc-400 hover:text-red-400 hover:border-zinc-500 transition"
               >
-                <FiLogOut className="h-4 w-4" />
+                <FiLogOut className="h-3.5 w-3.5" />
               </button>
             </div>
           ) : (
@@ -137,13 +154,32 @@ export function NavbarCom() {
         </Link>
 
         {currentUser ? (
-          <button
-            onClick={handleLogout}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-red-500 px-5 py-2 text-sm font-medium text-red-400"
-          >
-            <FiLogOut className="h-4 w-4" />
-            <span>Logout ({currentUser.name})</span>
-          </button>
+          <>
+            <Link
+              to="/user"
+              className="mt-2 flex items-center justify-center gap-2 rounded-full bg-zinc-800 border border-zinc-700 px-5 py-2 text-sm font-medium text-white"
+            >
+              <FaRegUser className="h-4 w-4 text-red-500" />
+              <span>Profile: {currentUser.name}</span>
+            </Link>
+
+            {currentUser.role === "admin" && (
+              <Link
+                to="/admin/schedules"
+                className="mt-2 flex items-center justify-center gap-2 rounded-full bg-amber-600/20 border border-amber-500/40 px-5 py-2 text-sm font-medium text-amber-300"
+              >
+                <span>Admin Panel</span>
+              </Link>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-red-500 px-5 py-2 text-sm font-medium text-red-400"
+            >
+              <FiLogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          </>
         ) : (
           <Link
             to="/login"
