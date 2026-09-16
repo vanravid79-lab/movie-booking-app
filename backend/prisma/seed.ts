@@ -1,4 +1,4 @@
-import { PrismaClient, ScheduleStatus, Role } from "@prisma/client";
+﻿import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -7,328 +7,277 @@ const TMDB_API_URL = "https://api.themoviedb.org/3";
 interface TmdbMovie {
   id: number;
   title: string;
+  overview?: string;
+  poster_path?: string;
+  vote_average?: number;
 }
 
-interface TmdbResponse {
-  results: TmdbMovie[];
-}
-
-/**
- * Fetches currently playing movie IDs from the TMDB API securely.
- */
-async function fetchTmdbMovieIds(
-  token: string,
-  limit: number = 5,
-): Promise<number[]> {
-  try {
-    const response = await fetch(
-      `${TMDB_API_URL}/movie/now_playing?language=en-US&page=1`,
-      {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        `TMDB API error: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    const data: TmdbResponse = await response.json();
-    return data.results.slice(0, limit).map((movie) => movie.id);
-  } catch (error) {
-    console.warn(
-      "⚠️ Failed to fetch from TMDB. Falling back to default movie IDs.",
-      error,
-    );
-    return [550, 680, 13, 27205, 496243, 238];
-  }
-}
-
-/**
- * Helper to construct Date objects for times cleanly without timezone drift.
- */
 function createTime(hours: number, minutes: number): Date {
   const date = new Date("1970-01-01T00:00:00.000Z");
   date.setUTCHours(hours, minutes, 0, 0);
   return date;
 }
 
+async function fetchTmdbMovies(token: string): Promise<TmdbMovie[]> {
+  try {
+    const response = await fetch(
+      `${TMDB_API_URL}/movie/now_playing?language=en-US&page=1`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+    if (!response.ok) return [];
+    const data: any = await response.json();
+    return data.results || [];
+  } catch (error) {
+    return [];
+  }
+}
+
 async function main() {
-  console.log("==========================================");
-  console.log(
-    "🚀 Starting Professional Database Seeder (Phnom Penh Cinemas)...",
-  );
-  console.log("==========================================");
+  console.log("=== Seeding exactly 6 cinemas for all movies ===");
 
-  // Clean existing database records safely in order
-  console.log("🧹 Wiping existing database records...");
-  await prisma.$transaction([
-    prisma.schedule.deleteMany(),
-    prisma.hall.deleteMany(),
-    prisma.cinema.deleteMany(),
-    prisma.user.deleteMany(),
-  ]);
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE 
+      ticket, payment, booking_food, booking_seat, booking, 
+      schedule, seat, movie_genre_map, movie_genre, movie, 
+      hall, cinema, "user", schedule_status, booking_status 
+    CASCADE;
+  `);
 
-  console.log("👤 Seeding default users (Admin & User)...");
   const adminPassword = await bcrypt.hash("admin123", 10);
   const userPassword = await bcrypt.hash("user123", 10);
 
   await prisma.user.createMany({
     data: [
       {
-        name: "Admin",
-        email: "admin@cinema.com",
-        password: adminPassword,
-        role: Role.ADMIN,
+        user_name: "Admin",
+        user_email: "admin@cinema.com",
+        user_password: adminPassword,
+        user_role: UserRole.Admin,
       },
       {
-        name: "User",
-        email: "user@cinema.com",
-        password: userPassword,
-        role: Role.USER,
+        user_name: "User",
+        user_email: "user@cinema.com",
+        user_password: userPassword,
+        user_role: UserRole.User,
       },
     ],
   });
 
-  console.log("🏢 Seeding expanded Phnom Penh cinemas and multiplex halls...");
-
-  // 1. Aeon Mall Phnom Penh Cinema
-  const aeon1Cinema = await prisma.cinema.create({
+  const scheduledStatus = await prisma.scheduleStatus.create({
     data: {
-      cinema_name: "Aeon Mall Cinema (Samdach Pan)",
-      cinema_location: "Sangkat Tonle Bassac, Khan Chamkar Mon, Phnom Penh",
+      schedule_status_name: "Scheduled",
+      schedule_status_description: "Showtime active.",
+    },
+  });
+
+  await prisma.bookingStatus.createMany({
+    data: [
+      { booking_status_name: "Confirmed", booking_status_description: "Confirmed" },
+      { booking_status_name: "Cancelled", booking_status_description: "Cancelled" },
+      { booking_status_name: "Pending", booking_status_description: "Pending" },
+    ],
+  });
+
+  // Seed 6 distinct cinema locations
+  const c1 = await prisma.cinema.create({
+    data: {
+      cinema_name: "Major Cineplex - Aeon Mall 1",
+      cinema_location: "Samdach Sothearos Blvd, Sangkat Tonle Bassac, Phnom Penh",
       cinema_phone: "023-981-888",
-      cinema_status: "Active",
       halls: {
         create: [
-          {
-            hall_name: "Hall 1",
-            hall_type: "IMAX 2D",
-            hall_capacity: 180,
-            hall_status: "Active",
-          },
-          {
-            hall_name: "Hall 2",
-            hall_type: "3D VIP",
-            hall_capacity: 90,
-            hall_status: "Active",
-          },
-          {
-            hall_name: "Hall 3",
-            hall_type: "Standard 2D",
-            hall_capacity: 120,
-            hall_status: "Active",
-          },
+          { hall_name: "Hall 1", hall_type: "IMAX 2D", hall_capacity: 180 },
+          { hall_name: "Hall 2", hall_type: "Standard 2D", hall_capacity: 120 },
         ],
       },
     },
     include: { halls: true },
   });
 
-  // 2. Aeon Mall Sen Sok City Cinema
-  const aeon2Cinema = await prisma.cinema.create({
+  const c2 = await prisma.cinema.create({
     data: {
-      cinema_name: "Aeon Mall Sen Sok City Cinema",
-      cinema_location: "Sensok, Phnom Penh",
-      cinema_phone: "023-901-222",
-      cinema_status: "Active",
+      cinema_name: "Major Cineplex - Aeon Mall 2 (Sen Sok)",
+      cinema_location: "St. 1003, Pong Peay Village, Sangkat Phnom Penh Thmey",
+      cinema_phone: "023-901-555",
       halls: {
         create: [
-          {
-            hall_name: "Screen 1",
-            hall_type: "IMAX Laser",
-            hall_capacity: 220,
-            hall_status: "Active",
-          },
-          {
-            hall_name: "Screen 2",
-            hall_type: "Dolby Atmos",
-            hall_capacity: 150,
-            hall_status: "Active",
-          },
+          { hall_name: "Screen 1", hall_type: "IMAX Laser", hall_capacity: 220 },
+          { hall_name: "Screen 2", hall_type: "Dolby Atmos", hall_capacity: 150 },
         ],
       },
     },
     include: { halls: true },
   });
 
-  // 3. Legend Cinema Eden Garden
-  const legendEden = await prisma.cinema.create({
+  const c3 = await prisma.cinema.create({
     data: {
-      cinema_name: "Legend Cinema Eden Garden",
-      cinema_location: "Phnom Penh City Center (TK/BKK area)",
+      cinema_name: "Legend Cinema - Eden Garden",
+      cinema_location: "Phnom Penh City Center, Sangkat Srah Chak, Khan Daun Penh",
       cinema_phone: "023-222-333",
-      cinema_status: "Active",
       halls: {
         create: [
-          {
-            hall_name: "Screen A",
-            hall_type: "Dolby Atmos",
-            hall_capacity: 200,
-            hall_status: "Active",
-          },
-          {
-            hall_name: "Screen B",
-            hall_type: "Standard 2D",
-            hall_capacity: 120,
-            hall_status: "Active",
-          },
+          { hall_name: "Screen A", hall_type: "Dolby Atmos", hall_capacity: 160 },
+          { hall_name: "Screen B", hall_type: "Standard 2D", hall_capacity: 110 },
         ],
       },
     },
     include: { halls: true },
   });
 
-  // 4. Major Cineplex by Cellcard (AEON 1)
-  const majorCineplex = await prisma.cinema.create({
+  const c4 = await prisma.cinema.create({
     data: {
-      cinema_name: "Major Cineplex Aeon Mall Phnom Penh",
-      cinema_location: "Aeon Mall Phnom Penh, 1st Floor",
-      cinema_phone: "023-999-555",
-      cinema_status: "Active",
+      cinema_name: "Legend Cinema - TK Avenue",
+      cinema_location: "Corner of St. 315 & St. 516, Sangkat Boeung Kak 1, Toul Kork",
+      cinema_phone: "023-888-222",
       halls: {
         create: [
-          {
-            hall_name: "Hall 4 (ScreenX)",
-            hall_type: "ScreenX 270°",
-            hall_capacity: 160,
-            hall_status: "Active",
-          },
-          {
-            hall_name: "Hall 5 (GLOE)",
-            hall_type: "VIP Gold Class",
-            hall_capacity: 60,
-            hall_status: "Active",
-          },
+          { hall_name: "Hall 1", hall_type: "Diamond VIP", hall_capacity: 80 },
+          { hall_name: "Hall 2", hall_type: "Standard 2D", hall_capacity: 140 },
         ],
       },
     },
     include: { halls: true },
   });
 
-  // 5. Prime Cineplex Sovanna
-  const primeSovanna = await prisma.cinema.create({
+  const c5 = await prisma.cinema.create({
     data: {
-      cinema_name: "Prime Cineplex Sovanna",
-      cinema_location: "Sovanna Shopping Center, Phnom Penh",
-      cinema_phone: "023-888-123",
-      cinema_status: "Active",
+      cinema_name: "Legend Premium - Exchange Square",
+      cinema_location: "St. 106, Sangkat Wat Phnom, Khan Daun Penh, Phnom Penh",
+      cinema_phone: "023-999-444",
       halls: {
         create: [
-          {
-            hall_name: "Hall 1",
-            hall_type: "Standard 2D",
-            hall_capacity: 140,
-            hall_status: "Active",
-          },
-          {
-            hall_name: "Hall 2",
-            hall_type: "3D Digital",
-            hall_capacity: 100,
-            hall_status: "Active",
-          },
+          { hall_name: "Gold Class", hall_type: "VIP Recliner", hall_capacity: 60 },
+          { hall_name: "Hall 2", hall_type: "Dolby 7.1", hall_capacity: 120 },
         ],
       },
     },
     include: { halls: true },
   });
 
-  // Fetch dynamic movie IDs from TMDB
-  const token = process.env.TMDB_API_KEY;
-  const movieIds = token
-    ? await fetchTmdbMovieIds(token, 6)
-    : [550, 680, 13, 27205, 496243, 238];
-  console.log(
-    `🎬 Target Movie IDs mapped for scheduling: [${movieIds.join(", ")}]`,
-  );
+  const c6 = await prisma.cinema.create({
+    data: {
+      cinema_name: "Prime Cineplex - Sovanna Mall",
+      cinema_location: "St. 271, Sangkat Tomnoub Teuk, Khan Chamkarmon, Phnom Penh",
+      cinema_phone: "023-777-111",
+      halls: {
+        create: [
+          { hall_name: "Cinema 1", hall_type: "Standard 2D", hall_capacity: 130 },
+          { hall_name: "Cinema 2", hall_type: "3D Digital", hall_capacity: 100 },
+        ],
+      },
+    },
+    include: { halls: true },
+  });
 
-  console.log(
-    "📅 Generating dynamic schedules across a 3-day window for all Phnom Penh locations...",
-  );
+  const allCinemas = [c1, c2, c3, c4, c5, c6];
 
-  const allHalls = [
-    ...aeon1Cinema.halls,
-    ...aeon2Cinema.halls,
-    ...legendEden.halls,
-    ...majorCineplex.halls,
-    ...primeSovanna.halls,
+  // Fetch TMDB movies
+  const token = process.env.TMDB_API_KEY || "";
+  const tmdbMovies = token ? await fetchTmdbMovies(token) : [];
+  const movieMap = new Map<number, TmdbMovie>();
+  tmdbMovies.forEach((m) => movieMap.set(m.id, m));
+
+  const fallbackList = [
+    { id: 1204680, title: "Ghostbusters: Frozen Empire" },
+    { id: 1375646, title: "Dune: Part Two" },
+    { id: 1368337, title: "Godzilla x Kong" },
+    { id: 1101383, title: "Civil War" },
+    { id: 1288445, title: "Furiosa: A Mad Max Saga" },
+    { id: 1108427, title: "Kingdom of the Planet of the Apes" },
+    { id: 969681,  title: "Bob Marley: One Love" },
+    { id: 550,     title: "Fight Club" },
   ];
 
-  const schedulesData = [];
+  fallbackList.forEach((d) => {
+    if (!movieMap.has(d.id)) {
+      movieMap.set(d.id, { id: d.id, title: d.title, overview: "Now showing in cinemas." });
+    }
+  });
+
+  const targetMovies = Array.from(movieMap.values());
+
+  for (const m of targetMovies) {
+    await prisma.movie.upsert({
+      where: { movie_id: m.id },
+      update: {},
+      create: {
+        movie_id: m.id,
+        movie_title: m.title,
+        movie_description: m.overview || "Now showing in cinemas.",
+        movie_duration: 120,
+        movie_rating: m.vote_average ? Number(m.vote_average.toFixed(1)) : 7.5,
+        movie_poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : null,
+      },
+    });
+  }
 
   const timeSlots = [
-    { start: createTime(11, 0), end: createTime(13, 30), price: 7.5 },
-    { start: createTime(14, 0), end: createTime(16, 30), price: 8.5 },
-    { start: createTime(17, 0), end: createTime(19, 30), price: 10.0 },
-    { start: createTime(20, 0), end: createTime(22, 30), price: 12.5 },
+    { start: createTime(10, 30), end: createTime(12, 45), price: 6.5 },
+    { start: createTime(13, 15), end: createTime(15, 30), price: 7.5 },
+    { start: createTime(16, 0),  end: createTime(18, 15), price: 9.0 },
+    { start: createTime(19, 0),  end: createTime(21, 15), price: 10.5 },
+    { start: createTime(21, 45), end: createTime(23, 50), price: 12.0 },
   ];
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Generate multi-day schedules distributed across all cinema halls and time slots
+  const schedulesData: any[] = [];
+  const movieIds = targetMovies.map((m) => m.id);
+
+  // Generate 30 days of showtimes
   for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
     const scheduleDate = new Date(today);
     scheduleDate.setDate(today.getDate() + dayOffset);
 
-    // Loop through all halls and assign rotating movie slots
-    allHalls.forEach((hall, hallIndex) => {
-      // Pick 2 different time slots per hall per day
-      const slot1 = timeSlots[hallIndex % timeSlots.length];
-      const slot2 = timeSlots[(hallIndex + 2) % timeSlots.length];
+    // Ensure every cinema has every movie
+    for (const cinema of allCinemas) {
+      for (const movieId of movieIds) {
+        const hall = cinema.halls[(movieId + dayOffset) % cinema.halls.length];
+        const slot1 = timeSlots[movieId % timeSlots.length];
+        const slot2 = timeSlots[(movieId + 2) % timeSlots.length];
 
-      const movie1Id = movieIds[hallIndex % movieIds.length];
-      const movie2Id = movieIds[(hallIndex + 1) % movieIds.length];
-
-      schedulesData.push(
-        {
-          movie_id: movie1Id,
-          hall_id: hall.hall_id,
-          schedule_date: scheduleDate,
-          start_time: slot1.start,
-          end_time: slot1.end,
-          ticket_price: slot1.price,
-          status: ScheduleStatus.Scheduled,
-        },
-        {
-          movie_id: movie2Id,
-          hall_id: hall.hall_id,
-          schedule_date: scheduleDate,
-          start_time: slot2.start,
-          end_time: slot2.end,
-          ticket_price: slot2.price,
-          status: ScheduleStatus.Scheduled,
-        },
-      );
-    });
+        schedulesData.push(
+          {
+            movie_id: movieId,
+            hall_id: hall.hall_id,
+            schedule_date: scheduleDate,
+            start_time: slot1.start,
+            end_time: slot1.end,
+            ticket_price: slot1.price,
+            schedule_status_id: scheduledStatus.schedule_status_id,
+          },
+          {
+            movie_id: movieId,
+            hall_id: hall.hall_id,
+            schedule_date: scheduleDate,
+            start_time: slot2.start,
+            end_time: slot2.end,
+            ticket_price: slot2.price,
+            schedule_status_id: scheduledStatus.schedule_status_id,
+          },
+        );
+      }
+    }
   }
 
-  const batchResult = await prisma.schedule.createMany({
-    data: schedulesData,
-    skipDuplicates: true,
-  });
+  const batchSize = 1000;
+  for (let i = 0; i < schedulesData.length; i += batchSize) {
+    const batch = schedulesData.slice(i, i + batchSize);
+    await prisma.schedule.createMany({ data: batch });
+  }
 
-  const totalCinemas = 5;
-
-  console.log("");
-  console.log("==========================================");
-  console.log("✅ Database Seeding Completed Successfully!");
-  console.log("==========================================");
-  console.log(`• Cinemas Seeded: ${totalCinemas}`);
-  console.log(`• Total Halls Created: ${allHalls.length}`);
-  console.log(`• Schedules Generated: ${batchResult.count}`);
-  console.log("==========================================");
+  console.log(`✅ Finished: ${allCinemas.length} Cinemas | ${targetMovies.length} Movies | ${schedulesData.length} Showtimes`);
 }
 
 main()
-  .catch((error) => {
-    console.error("❌ Critical Error during database seeding:", error);
+  .catch((e) => {
+    console.error(e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

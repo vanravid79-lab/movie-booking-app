@@ -66,7 +66,6 @@ export const createAdminSchedule = async (req, res) => {
         start_time,
         end_time,
         ticket_price: parseFloat(ticket_price),
-        status: status || "Scheduled",
       },
     });
 

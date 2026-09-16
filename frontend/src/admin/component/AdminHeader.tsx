@@ -19,9 +19,9 @@ function AdminHeader({
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 gap-4">
+    <header className="h-16 bg-[#18181f] border-b border-zinc-800 flex items-center justify-between px-6 gap-4">
       {/* Title */}
-      <h1 className="text-lg font-semibold text-slate-900 shrink-0">{title}</h1>
+      <h1 className="text-lg font-semibold text-white shrink-0">{title}</h1>
 
       {/* Search */}
       <div className="flex-1 max-w-md">
@@ -29,14 +29,14 @@ function AdminHeader({
           <Search
             size={16}
             strokeWidth={1.75}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
           />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search movies, bookings, screens..."
-            className="w-full rounded-md border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-400 transition-colors"
+            className="w-full rounded-md border border-zinc-700 bg-zinc-900/90 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-colors"
           />
         </div>
       </div>

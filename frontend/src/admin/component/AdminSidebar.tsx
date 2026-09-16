@@ -72,17 +72,17 @@ function AdminSidebar({
 
   return (
     <aside
-      className={`h-screen bg-white border-r border-slate-200 flex flex-col transition-all duration-200 ${
+      className={`h-screen bg-[#18181f] border-r border-zinc-800 text-slate-200 flex flex-col transition-all duration-200 ${
         collapsed ? "w-[76px]" : "w-64"
       }`}
     >
       {/* Brand */}
-      <div className="flex items-center h-16 px-4 border-b border-slate-200">
+      <div className="flex items-center h-16 px-4 border-b border-zinc-800">
         <div className="w-8 h-8 rounded-md bg-rose-600 flex items-center justify-center shrink-0">
           <Ticket size={16} className="text-white" strokeWidth={2.25} />
         </div>
         {!collapsed && (
-          <span className="ml-3 text-slate-900 font-semibold text-[15px]">
+          <span className="ml-3 text-white font-semibold text-[15px]">
             CineDesk
           </span>
         )}
@@ -107,8 +107,8 @@ function AdminSidebar({
                       onClick={() => handleNavClick(key)}
                       className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
                         isActive
-                          ? "bg-rose-50 text-rose-700 font-medium"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          ? "bg-rose-600/20 text-rose-400 font-medium"
+                          : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
                       }`}
                       title={collapsed ? label : undefined}
                     >
@@ -128,45 +128,40 @@ function AdminSidebar({
       </nav>
 
       {/* Footer / user + logout + collapse toggle */}
-      <div className="border-t border-slate-200 p-3">
+      <div className="border-t border-zinc-800 p-3">
         <div className="flex items-center gap-3 px-1 py-1">
-          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-            <span className="text-xs font-medium text-slate-600">JD</span>
+          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
+            <span className="text-xs font-medium text-zinc-300">AD</span>
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">
-                Jamie Diaz
+              <p className="text-sm font-medium text-zinc-100 truncate">
+                Administrator
               </p>
-              <p className="text-xs text-slate-500 truncate">Theatre Manager</p>
+              <p className="text-xs text-zinc-500 truncate">admin@cinema.com</p>
             </div>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={onLogout}
-          title={collapsed ? "Log out" : undefined}
-          className="mt-3 w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition-colors"
-        >
-          <LogOut size={18} strokeWidth={1.75} className="shrink-0" />
-          {!collapsed && <span>Log out</span>}
-        </button>
+        <div className="mt-2 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-rose-400 transition-colors"
+          >
+            <LogOut size={14} />
+            {!collapsed && <span>Log out</span>}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          className="mt-1 w-full flex items-center justify-center gap-2 rounded-md py-2 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-        >
-          {collapsed ? (
-            <ChevronsRight size={16} />
-          ) : (
-            <>
-              <ChevronsLeft size={16} />
-              <span>Collapse</span>
-            </>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
+          </button>
+        </div>
       </div>
     </aside>
   );
