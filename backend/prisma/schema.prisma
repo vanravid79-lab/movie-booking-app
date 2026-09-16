@@ -3,69 +3,505 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+
+// ======================================================
+// CINEMA
+// ======================================================
 
 model Cinema {
   cinema_id       Int          @id @default(autoincrement())
   cinema_name     String       @db.VarChar(150)
-  cinema_location String       @db.VarChar(255)
+  cinema_location String?      @db.VarChar(255)
   cinema_phone    String?      @db.VarChar(20)
-  cinema_status   CinemaStatus @default(Active)
+  cinema_status   CinemaStatus? @default(Active)
+
   halls           Hall[]
 
   @@map("cinema")
 }
 
-model Hall {
-  hall_id       Int        @id @default(autoincrement())
-  cinema_id     Int
-  hall_name     String     @db.VarChar(100)
-  hall_type     String     @default("Standard") @db.VarChar(50)
-  hall_capacity Int        @default(100)
-  hall_status   HallStatus @default(Active)
-  cinema        Cinema     @relation(fields: [cinema_id], references: [cinema_id], onDelete: Cascade)
-  schedules     Schedule[]
 
-  @@unique([cinema_id, hall_name])
+// ======================================================
+// HALL
+// ======================================================
+
+model Hall {
+  hall_id       Int          @id @default(autoincrement())
+  cinema_id     Int
+  hall_name     String       @db.VarChar(100)
+  hall_type     String?      @db.VarChar(50)
+  hall_capacity Int?
+  hall_status   HallStatus?  @default(Active)
+
+  cinema        Cinema       @relation(fields: [cinema_id], references: [cinema_id], onDelete: Restrict, onUpdate: Restrict)
+  schedules     Schedule[]
+  seats         Seat[]
+
   @@index([cinema_id])
   @@map("hall")
 }
 
-model Schedule {
-  schedule_id   Int            @id @default(autoincrement())
-  movie_id      Int
-  hall_id       Int
-  schedule_date DateTime       @db.Date
-  start_time    DateTime       @db.Time(6)
-  end_time      DateTime       @db.Time(6)
-  ticket_price  Decimal        @db.Decimal(10, 2)
-  status        ScheduleStatus @default(Scheduled)
-  hall          Hall           @relation(fields: [hall_id], references: [hall_id], onDelete: Cascade)
 
-  @@index([movie_id, schedule_date])
-  @@index([hall_id, schedule_date])
-  @@index([schedule_date, start_time])
+// ======================================================
+// MOVIE
+// ======================================================
+
+model Movie {
+  movie_id          Int          @id @default(autoincrement())
+  movie_title       String       @db.VarChar(200)
+  movie_description String?      @db.Text
+  movie_duration    Int?
+  movie_language    String?      @db.VarChar(50)
+  movie_release_date DateTime?   @db.Date
+  movie_rating      Decimal?     @db.Decimal(3, 1)
+  movie_poster      String?      @db.VarChar(255)
+  movie_status      MovieStatus? @default(ComingSoon)
+
+  schedules         Schedule[]
+  genre_maps        MovieGenreMap[]
+
+  @@map("movie")
+}
+
+
+// ======================================================
+// MOVIE GENRE
+// ======================================================
+
+model MovieGenre {
+  genre_id          Int             @id @default(autoincrement())
+  genre_name        String          @unique @db.VarChar(80)
+  genre_description String?         @db.Text
+
+  movie_maps        MovieGenreMap[]
+
+  @@map("movie_genre")
+}
+
+
+// ======================================================
+// MOVIE GENRE MAP
+// ======================================================
+
+model MovieGenreMap {
+  movie_id Int
+  genre_id Int
+
+  movie    Movie      @relation(fields: [movie_id], references: [movie_id], onDelete: Cascade, onUpdate: Restrict)
+  genre    MovieGenre @relation(fields: [genre_id], references: [genre_id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([movie_id, genre_id])
+  @@index([genre_id])
+  @@map("movie_genre_map")
+}
+
+
+// ======================================================
+// SEAT
+// ======================================================
+
+model Seat {
+  seat_id     Int         @id @default(autoincrement())
+  hall_id     Int
+  seat_number String      @db.VarChar(10)
+  seat_type   String?     @default("Standard") @db.VarChar(50)
+  seat_status SeatStatus? @default(Available)
+
+  hall         Hall        @relation(fields: [hall_id], references: [hall_id], onDelete: Restrict, onUpdate: Restrict)
+  booking_seats BookingSeat[]
+
+  @@unique([hall_id, seat_number])
+  @@index([hall_id])
+  @@map("seat")
+}
+
+
+// ======================================================
+// SCHEDULE
+// ======================================================
+
+model Schedule {
+  schedule_id        Int             @id @default(autoincrement())
+  movie_id           Int
+  hall_id            Int
+  schedule_date      DateTime        @db.Date
+  start_time         DateTime        @db.Time(6)
+  end_time           DateTime        @db.Time(6)
+  ticket_price       Decimal         @db.Decimal(10, 2)
+  schedule_status_id Int?
+
+  movie              Movie           @relation(fields: [movie_id], references: [movie_id], onDelete: Restrict, onUpdate: Restrict)
+  hall               Hall            @relation(fields: [hall_id], references: [hall_id], onDelete: Restrict, onUpdate: Restrict)
+  schedule_status    ScheduleStatus? @relation(fields: [schedule_status_id], references: [schedule_status_id], onDelete: Restrict, onUpdate: Restrict)
+
+  bookings           Booking[]
+
+  @@index([movie_id])
+  @@index([hall_id])
+  @@index([schedule_status_id])
   @@map("schedule")
 }
+
+
+// ======================================================
+// SCHEDULE STATUS
+// ======================================================
+
+model ScheduleStatus {
+  schedule_status_id          Int        @id @default(autoincrement())
+  schedule_status_name        String     @unique @db.VarChar(50)
+  schedule_status_description String?    @db.Text
+
+  schedules Schedule[]
+
+  @@map("schedule_status")
+}
+
+
+// ======================================================
+// BOOKING
+// ======================================================
+
+model Booking {
+  booking_id        Int            @id @default(autoincrement())
+  user_id           Int
+  schedule_id       Int
+  booking_date      DateTime?      @default(now())
+  total_amount      Decimal        @default(0.00) @db.Decimal(12, 2)
+  booking_status_id Int?
+
+  user              User           @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Restrict)
+  schedule          Schedule       @relation(fields: [schedule_id], references: [schedule_id], onDelete: Restrict, onUpdate: Restrict)
+  booking_status    BookingStatus? @relation(fields: [booking_status_id], references: [booking_status_id], onDelete: Restrict, onUpdate: Restrict)
+
+  booking_foods     BookingFood[]
+  booking_seats     BookingSeat[]
+  payments          Payment[]
+  tickets           Ticket[]
+
+  @@index([user_id])
+  @@index([schedule_id])
+  @@index([booking_status_id])
+  @@map("booking")
+}
+
+
+// ======================================================
+// BOOKING STATUS
+// ======================================================
+
+model BookingStatus {
+  booking_status_id          Int       @id @default(autoincrement())
+  booking_status_name        String    @unique @db.VarChar(50)
+  booking_status_description String?   @db.Text
+
+  bookings Booking[]
+
+  @@map("booking_status")
+}
+
+
+// ======================================================
+// BOOKING SEAT
+// ======================================================
+
+model BookingSeat {
+  booking_seat_id Int       @id @default(autoincrement())
+  booking_id      Int
+  seat_id         Int
+  seat_price      Decimal   @db.Decimal(10, 2)
+
+  booking         Booking   @relation(fields: [booking_id], references: [booking_id], onDelete: Cascade, onUpdate: Restrict)
+  seat            Seat      @relation(fields: [seat_id], references: [seat_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([booking_id, seat_id])
+  @@index([seat_id])
+  @@map("booking_seat")
+}
+
+
+// ======================================================
+// FOOD CATEGORY
+// ======================================================
+
+model FoodCategory {
+  food_category_id          Int          @id @default(autoincrement())
+  food_category_name        String       @db.VarChar(100)
+  food_category_description String?      @db.Text
+
+  food_items FoodItem[]
+
+  @@map("food_category")
+}
+
+
+// ======================================================
+// FOOD ITEM
+// ======================================================
+
+model FoodItem {
+  food_id          Int          @id @default(autoincrement())
+  food_category_id Int?
+  food_name        String       @db.VarChar(150)
+  food_description String?      @db.Text
+  food_price       Decimal      @db.Decimal(10, 2)
+  food_stock       Int?         @default(0)
+  food_status      FoodStatus?  @default(Available)
+
+  food_category    FoodCategory? @relation(fields: [food_category_id], references: [food_category_id], onDelete: Restrict, onUpdate: Restrict)
+  booking_foods    BookingFood[]
+
+  @@index([food_category_id])
+  @@map("food_item")
+}
+
+
+// ======================================================
+// BOOKING FOOD
+// ======================================================
+
+model BookingFood {
+  booking_food_id Int       @id @default(autoincrement())
+  booking_id     Int
+  food_id        Int
+  food_quantity  Int       @default(1)
+  food_unit_price Decimal  @db.Decimal(10, 2)
+  food_subtotal  Decimal?  @db.Decimal(12, 2)
+
+  booking         Booking   @relation(fields: [booking_id], references: [booking_id], onDelete: Cascade, onUpdate: Restrict)
+  food_item       FoodItem  @relation(fields: [food_id], references: [food_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([booking_id])
+  @@index([food_id])
+  @@map("booking_food")
+}
+
+
+// ======================================================
+// PAYMENT
+// ======================================================
+
+model Payment {
+  payment_id        Int            @id @default(autoincrement())
+  booking_id        Int
+  payment_type_id   Int?
+  payment_method_id Int?
+  payment_status_id Int?
+  payment_amount    Decimal        @db.Decimal(12, 2)
+  payment_date      DateTime?      @default(now())
+
+  booking           Booking        @relation(fields: [booking_id], references: [booking_id], onDelete: Restrict, onUpdate: Restrict)
+  payment_type      PaymentType?   @relation(fields: [payment_type_id], references: [payment_type_id], onDelete: Restrict, onUpdate: Restrict)
+  payment_method    PaymentMethod? @relation(fields: [payment_method_id], references: [payment_method_id], onDelete: Restrict, onUpdate: Restrict)
+  payment_status    PaymentStatus? @relation(fields: [payment_status_id], references: [payment_status_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([booking_id])
+  @@index([payment_type_id])
+  @@index([payment_method_id])
+  @@index([payment_status_id])
+  @@map("payment")
+}
+
+
+// ======================================================
+// PAYMENT TYPE
+// ======================================================
+
+model PaymentType {
+  payment_type_id          Int       @id @default(autoincrement())
+  payment_type_name        String    @unique @db.VarChar(50)
+  payment_type_description String?   @db.Text
+
+  payments Payment[]
+
+  @@map("payment_type")
+}
+
+
+// ======================================================
+// PAYMENT METHOD
+// ======================================================
+
+model PaymentMethod {
+  payment_method_id          Int       @id @default(autoincrement())
+  payment_method_name        String    @unique @db.VarChar(50)
+  payment_method_description String?   @db.Text
+
+  payments Payment[]
+
+  @@map("payment_method")
+}
+
+
+// ======================================================
+// PAYMENT STATUS
+// ======================================================
+
+model PaymentStatus {
+  payment_status_id          Int       @id @default(autoincrement())
+  payment_status_name        String    @unique @db.VarChar(50)
+  payment_status_description String?   @db.Text
+
+  payments Payment[]
+
+  @@map("payment_status")
+}
+
+
+// ======================================================
+// TICKET
+// ======================================================
+
+model Ticket {
+  ticket_id     Int          @id @default(autoincrement())
+  booking_id    Int
+  ticket_number String       @unique @db.VarChar(30)
+  ticket_status TicketStatus? @default(Valid)
+  issued_date   DateTime?    @default(now())
+
+  booking       Booking      @relation(fields: [booking_id], references: [booking_id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([booking_id])
+  @@map("ticket")
+}
+
+
+// ======================================================
+// USER
+// ======================================================
+
+model User {
+  user_id       Int          @id @default(autoincrement())
+  user_name     String       @db.VarChar(100)
+  user_gender   UserGender?
+  user_phone    String?      @db.VarChar(20)
+  user_email    String?      @unique @db.VarChar(150)
+  created_at    DateTime?    @default(now())
+
+  bookings      Booking[]
+  dashboards    Dashboard[]
+  reports       Report[]
+  login_transactions UserLoginTransaction[]
+
+  @@map("user")
+}
+
+
+// ======================================================
+// USER LOGIN TRANSACTION
+// ======================================================
+
+model UserLoginTransaction {
+  login_id       Int       @id @default(autoincrement())
+  user_id        Int
+  login_datetime DateTime
+  logout_datetime DateTime?
+
+  user           User      @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([user_id])
+  @@map("user_login_transaction")
+}
+
+
+// ======================================================
+// DASHBOARD
+// ======================================================
+
+model Dashboard {
+  dashboard_id          Int       @id @default(autoincrement())
+  dashboard_name        String    @db.VarChar(100)
+  dashboard_description String?   @db.Text
+  user_id               Int?
+
+  user                  User?     @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([user_id])
+  @@map("dashboard")
+}
+
+
+// ======================================================
+// REPORT
+// ======================================================
+
+model Report {
+  report_id     Int       @id @default(autoincrement())
+  report_name   String    @db.VarChar(150)
+  report_type_id Int?
+  report_date   DateTime? @default(now())
+  user_id       Int?
+
+  report_type   ReportType? @relation(fields: [report_type_id], references: [report_type_id], onDelete: Restrict, onUpdate: Restrict)
+  user          User?       @relation(fields: [user_id], references: [user_id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([report_type_id])
+  @@index([user_id])
+  @@map("report")
+}
+
+
+// ======================================================
+// REPORT TYPE
+// ======================================================
+
+model ReportType {
+  report_type_id          Int       @id @default(autoincrement())
+  report_type_name        String    @unique @db.VarChar(100)
+  report_type_description String?   @db.Text
+
+  reports Report[]
+
+  @@map("report_type")
+}
+
+
+// ======================================================
+// ENUMS
+// ======================================================
 
 enum CinemaStatus {
   Active
   Inactive
-  Renovating
-  Closed
+  Maintenance
 }
 
 enum HallStatus {
   Active
   Inactive
   Maintenance
-  Cleaning
 }
 
-enum ScheduleStatus {
-  Scheduled
+enum MovieStatus {
+  ComingSoon
+  NowShowing
+  Ended
+}
+
+enum SeatStatus {
+  Available
+  Maintenance
+}
+
+enum FoodStatus {
+  Available
+  OutOfStock
+  Discontinued
+}
+
+enum TicketStatus {
+  Valid
+  Used
   Cancelled
-  Completed
+  Expired
+}
+
+enum UserGender {
+  Male
+  Female
+  Other
 }
