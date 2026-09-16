@@ -148,6 +148,7 @@ async function main() {
             hall_capacity: 200,
             hall_status: "Active",
           },
+
           {
             hall_name: "Screen B",
             hall_type: "Standard 2D",
