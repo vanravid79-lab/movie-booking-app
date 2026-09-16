@@ -6,6 +6,7 @@ import { Pool } from "pg";
 
 import movieRoutes from "./routes/movieRoutes";
 import adminRoutes from "./routes/adminRoutes";
+import authRoutes from "./routes/authRoutes";
 
 dotenv.config();
 
@@ -157,6 +158,12 @@ async function setupDatabaseTriggers() {
     console.error("Failed to setup real-time DB triggers:", error);
   }
 }
+
+// ======================================================
+// AUTH API
+// ======================================================
+
+app.use("/api/auth", authRoutes);
 
 // ======================================================
 // MOVIE API

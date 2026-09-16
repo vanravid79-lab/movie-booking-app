@@ -1,4 +1,5 @@
-import { PrismaClient, ScheduleStatus } from "@prisma/client";
+import { PrismaClient, ScheduleStatus, Role } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 const TMDB_API_URL = "https://api.themoviedb.org/3";
@@ -69,7 +70,29 @@ async function main() {
     prisma.schedule.deleteMany(),
     prisma.hall.deleteMany(),
     prisma.cinema.deleteMany(),
+    prisma.user.deleteMany(),
   ]);
+
+  console.log("👤 Seeding default users (Admin & User)...");
+  const adminPassword = await bcrypt.hash("admin123", 10);
+  const userPassword = await bcrypt.hash("user123", 10);
+
+  await prisma.user.createMany({
+    data: [
+      {
+        name: "Admin",
+        email: "admin@cinema.com",
+        password: adminPassword,
+        role: Role.ADMIN,
+      },
+      {
+        name: "User",
+        email: "user@cinema.com",
+        password: userPassword,
+        role: Role.USER,
+      },
+    ],
+  });
 
   console.log("🏢 Seeding expanded Phnom Penh cinemas and multiplex halls...");
 
@@ -215,7 +238,7 @@ async function main() {
   });
 
   // Fetch dynamic movie IDs from TMDB
-  const token = process.env.VITE_TMDB_READ_TOKEN || process.env.TMDB_READ_TOKEN;
+  const token = process.env.TMDB_API_KEY;
   const movieIds = token
     ? await fetchTmdbMovieIds(token, 6)
     : [550, 680, 13, 27205, 496243, 238];
@@ -248,7 +271,7 @@ async function main() {
   today.setHours(0, 0, 0, 0);
 
   // Generate multi-day schedules distributed across all cinema halls and time slots
-  for (let dayOffset = 0; dayOffset < 3; dayOffset++) {
+  for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
     const scheduleDate = new Date(today);
     scheduleDate.setDate(today.getDate() + dayOffset);
 
