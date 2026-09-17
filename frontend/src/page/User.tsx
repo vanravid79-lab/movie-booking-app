@@ -1,6 +1,14 @@
-﻿import React, { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { FaUser, FaEnvelope, FaPhone, FaShieldAlt, FaTicketAlt, FaSignOutAlt, FaCalendarCheck } from "react-icons/fa";
+import {
+  FaUser,
+  FaEnvelope,
+  FaPhone,
+  FaShieldAlt,
+  FaTicketAlt,
+  FaSignOutAlt,
+  FaCalendarCheck,
+} from "react-icons/fa";
 
 interface UserProfile {
   id: number;
@@ -27,8 +35,11 @@ export default function User() {
 
     if (cachedUser) {
       try {
-        setUser(JSON.parse(cachedUser));
-      } catch (e) {}
+        const parsedUser = JSON.parse(cachedUser);
+        window.setTimeout(() => setUser(parsedUser), 0);
+      } catch {
+        window.setTimeout(() => setUser(null), 0);
+      }
     }
 
     // Fetch live verified profile from backend database
@@ -81,13 +92,15 @@ export default function User() {
         <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-red-600/10 blur-3xl pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row items-center gap-6">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-red-950 text-4xl font-bold shadow-lg border-2 border-red-500/40">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-red-600 to-red-950 text-4xl font-bold shadow-lg border-2 border-red-500/40">
             {user.name ? user.name.charAt(0).toUpperCase() : "U"}
           </div>
 
           <div className="text-center sm:text-left flex-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-              <h1 className="text-2xl sm:text-3xl font-extrabold">{user.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold">
+                {user.name}
+              </h1>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
                   user.role === "admin"
@@ -130,7 +143,8 @@ export default function User() {
 
             <div className="flex justify-between py-2 border-b border-zinc-800/60">
               <span className="text-zinc-400 flex items-center gap-2">
-                <FaEnvelope className="h-3.5 w-3.5 text-zinc-500" /> Email Address:
+                <FaEnvelope className="h-3.5 w-3.5 text-zinc-500" /> Email
+                Address:
               </span>
               <span className="font-medium text-zinc-100">{user.email}</span>
             </div>
@@ -139,14 +153,19 @@ export default function User() {
               <span className="text-zinc-400 flex items-center gap-2">
                 <FaPhone className="h-3.5 w-3.5 text-zinc-500" /> Phone:
               </span>
-              <span className="font-medium text-zinc-100">{user.phone || "Not set"}</span>
+              <span className="font-medium text-zinc-100">
+                {user.phone || "Not set"}
+              </span>
             </div>
 
             <div className="flex justify-between py-2">
               <span className="text-zinc-400 flex items-center gap-2">
-                <FaShieldAlt className="h-3.5 w-3.5 text-zinc-500" /> Access Role:
+                <FaShieldAlt className="h-3.5 w-3.5 text-zinc-500" /> Access
+                Role:
               </span>
-              <span className="font-medium capitalize text-amber-400">{user.role}</span>
+              <span className="font-medium capitalize text-amber-400">
+                {user.role}
+              </span>
             </div>
           </div>
         </div>
@@ -159,7 +178,8 @@ export default function User() {
               Account Shortcuts
             </h2>
             <p className="text-sm text-zinc-400 mb-6">
-              View your booked movie tickets, manage schedules, or browse currently showing movies.
+              View your booked movie tickets, manage schedules, or browse
+              currently showing movies.
             </p>
           </div>
 

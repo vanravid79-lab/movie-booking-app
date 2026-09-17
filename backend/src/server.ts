@@ -1,12 +1,13 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 
 import movieRoutes from "./routes/movieRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import authRoutes from "./routes/authRoutes";
+import { authenticateJWT, AuthRequest } from "./middleware/auth";
 
 dotenv.config();
 
@@ -176,6 +177,176 @@ app.use("/api/movies", movieRoutes);
 // ======================================================
 
 app.use("/api/admin", adminRoutes);
+
+// ======================================================
+// BOOKING API
+// ======================================================
+
+app.post(
+  "/api/bookings",
+  authenticateJWT,
+  async (req: AuthRequest, res) => {
+    const requestBody = (req as AuthRequest & {
+      body: { scheduleId?: unknown; seatIds?: unknown[] };
+    }).body;
+    const scheduleId = Number(requestBody.scheduleId);
+    const seatIds = Array.isArray(requestBody.seatIds)
+      ? requestBody.seatIds.map(Number)
+      : [];
+
+    if (
+      !req.user?.sub ||
+      !Number.isInteger(scheduleId) ||
+      scheduleId <= 0 ||
+      seatIds.length === 0 ||
+      seatIds.some((seatId) => !Number.isInteger(seatId) || seatId <= 0)
+    ) {
+      return res.status(400).json({
+        ok: false,
+        message: "A valid schedule and at least one seat are required.",
+      });
+    }
+
+    const uniqueSeatIds = [...new Set(seatIds)];
+
+    try {
+      const booking = await prisma.$transaction(
+        async (transaction) => {
+          const schedule = await transaction.schedule.findUnique({
+            where: { schedule_id: scheduleId },
+            include: { hall: true },
+          });
+
+          if (!schedule) {
+            throw new Error("SHOWTIME_NOT_FOUND");
+          }
+
+          const seats = await transaction.seat.findMany({
+            where: {
+              seat_id: { in: uniqueSeatIds },
+              hall_id: schedule.hall_id,
+              seat_status: "Available",
+            },
+          });
+
+          if (seats.length !== uniqueSeatIds.length) {
+            throw new Error("SEAT_NOT_AVAILABLE");
+          }
+
+          const alreadyBooked = await transaction.bookingSeat.findMany({
+            where: {
+              seat_id: { in: uniqueSeatIds },
+              booking: { schedule_id: scheduleId },
+            },
+            select: { seat_id: true },
+          });
+
+          if (alreadyBooked.length > 0) {
+            throw new Error("SEAT_ALREADY_BOOKED");
+          }
+
+          const confirmedStatus = await transaction.bookingStatus.findUnique({
+            where: { booking_status_name: "Confirmed" },
+          });
+          const totalAmount = Number(schedule.ticket_price) * seats.length;
+
+          return transaction.booking.create({
+            data: {
+              user_id: req.user!.sub,
+              schedule_id: scheduleId,
+              total_amount: new Prisma.Decimal(totalAmount.toFixed(2)),
+              booking_status_id: confirmedStatus?.booking_status_id,
+              booking_seats: {
+                create: seats.map((seat) => ({
+                  seat_id: seat.seat_id,
+                  seat_price: schedule.ticket_price,
+                })),
+              },
+            },
+            include: { booking_seats: { include: { seat: true } } },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+
+      return res.status(201).json({
+        ok: true,
+        bookingId: booking.booking_id,
+        totalAmount: Number(booking.total_amount),
+        seats: booking.booking_seats.map(({ seat }) => seat.seat_number),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message === "SHOWTIME_NOT_FOUND") {
+        return res.status(404).json({ ok: false, message: "Showtime not found." });
+      }
+      if (message === "SEAT_NOT_AVAILABLE" || message === "SEAT_ALREADY_BOOKED") {
+        return res.status(409).json({ ok: false, message: "One or more selected seats are no longer available." });
+      }
+      console.error("Failed to create booking:", error);
+      return res.status(500).json({ ok: false, message: "Failed to create booking." });
+    }
+  },
+);
+
+// ======================================================
+// SEAT SELECTION API
+// ======================================================
+
+app.get("/api/schedules/:scheduleId/seats", async (req, res) => {
+  const scheduleId = Number(req.params.scheduleId);
+
+  if (!Number.isInteger(scheduleId) || scheduleId <= 0) {
+    return res.status(400).json({ message: "Invalid schedule ID." });
+  }
+
+  try {
+    const schedule = await prisma.schedule.findUnique({
+      where: { schedule_id: scheduleId },
+      include: {
+        movie: true,
+        hall: { include: { cinema: true } },
+      },
+    });
+
+    if (!schedule) {
+      return res.status(404).json({ message: "Showtime not found." });
+    }
+
+    const seats = await prisma.seat.findMany({
+      where: { hall_id: schedule.hall_id },
+      orderBy: { seat_id: "asc" },
+      include: {
+        booking_seats: {
+          where: { booking: { schedule_id: scheduleId } },
+          select: { booking_seat_id: true },
+        },
+      },
+    });
+
+    return res.json({
+      schedule: {
+        schedule_id: schedule.schedule_id,
+        movie_id: schedule.movie_id,
+        movie_title: schedule.movie.movie_title,
+        schedule_date: schedule.schedule_date,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        ticket_price: Number(schedule.ticket_price),
+        hall_name: schedule.hall.hall_name,
+        hall_type: schedule.hall.hall_type,
+        cinema_name: schedule.hall.cinema.cinema_name,
+      },
+      seats: seats.map(({ booking_seats, ...seat }) => ({
+        ...seat,
+        is_booked: booking_seats.length > 0,
+      })),
+    });
+  } catch (error) {
+    console.error("Failed to fetch seats:", error);
+    return res.status(500).json({ message: "Failed to fetch seats." });
+  }
+});
 
 // ======================================================
 // REAL-TIME SCHEDULES - SSE

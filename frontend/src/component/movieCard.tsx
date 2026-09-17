@@ -33,7 +33,7 @@ export function MovieCard({ selectedDate }: MovieCardProps) {
   useEffect(() => {
     if (!selectedDate) return;
 
-    setLoading(true);
+    const loadingTimer = window.setTimeout(() => setLoading(true), 0);
     const controller = new AbortController();
     const token = import.meta.env.VITE_TMDB_READ_TOKEN;
 
@@ -70,7 +70,10 @@ export function MovieCard({ selectedDate }: MovieCardProps) {
         }
       });
 
-    return () => controller.abort();
+    return () => {
+      window.clearTimeout(loadingTimer);
+      controller.abort();
+    };
   }, [selectedDate]);
 
   return (

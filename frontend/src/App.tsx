@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
 
 import { MovieCard } from "./component/movieCard";
@@ -103,7 +103,7 @@ export const App = () => {
             alt="Cinema Hero Banner"
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black via-black/20 to-transparent" />
         </div>
 
         {/* Tab Switcher */}
@@ -120,7 +120,7 @@ export const App = () => {
             Now Showing
           </button>
 
-          <span className="inline-block h-6 w-[1px] bg-zinc-700" />
+          <span className="inline-block h-6 w-px bg-zinc-700" />
 
           <button
             type="button"

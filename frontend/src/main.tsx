@@ -12,6 +12,8 @@ import UpcomingMovie from "./component/upcoming.tsx";
 import MovieDetail from "./component/movieDetail.tsx";
 import SchedulePage from "./page/SchedulePage.tsx";
 import LoginPage from "./page/LoginPage.tsx";
+import SeatSelectionPage from "./page/SeatSelectionPage.tsx";
+import CheckoutPage from "./page/CheckoutPage.tsx";
 
 // Import Admin Layout & Components
 import AdminLayout from "../src/admin/layout/AdminLayout.tsx";
@@ -28,10 +30,19 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/tickets" element={<Tickets />} />
           <Route path="/user" element={<User />} />
           <Route path="/notification" element={<Notification />} />
-          <Route path="/upcoming" element={<UpcomingMovie />} />
+          <Route
+            path="/upcoming"
+            element={
+              <UpcomingMovie
+                selectedMonth={new Date().toISOString().slice(0, 7)}
+              />
+            }
+          />
           <Route path="/login" element={<LoginPage />} />
 
           <Route path="/movie/:id" element={<MovieDetail />} />
+          <Route path="/booking/:scheduleId" element={<SeatSelectionPage />} />
+          <Route path="/checkout/:scheduleId" element={<CheckoutPage />} />
           <Route path="/dashboard" element={<SchedulePage />} />
         </Route>
 

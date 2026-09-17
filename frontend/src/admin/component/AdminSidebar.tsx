@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   LayoutGrid,
   Clapperboard,
@@ -73,7 +73,7 @@ function AdminSidebar({
   return (
     <aside
       className={`h-screen bg-[#18181f] border-r border-zinc-800 text-slate-200 flex flex-col transition-all duration-200 ${
-        collapsed ? "w-[76px]" : "w-64"
+        collapsed ? "w-19" : "w-64"
       }`}
     >
       {/* Brand */}
@@ -159,7 +159,11 @@ function AdminSidebar({
             className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
+            {collapsed ? (
+              <ChevronsRight size={14} />
+            ) : (
+              <ChevronsLeft size={14} />
+            )}
           </button>
         </div>
       </div>

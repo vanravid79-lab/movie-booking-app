@@ -1,7 +1,6 @@
 // import React from "react";
 import { Outlet } from "react-router-dom";
 import { NavbarCom } from "./navbar";
-import FooterCom from "./footer";
 
 // control on havbar, mainPage and footer
 function Rootlayout() {

@@ -34,7 +34,7 @@ export function UpcomingMovie({ selectedMonth }: UpcomingMovieProps) {
   useEffect(() => {
     if (!selectedMonth) return;
 
-    setLoading(true);
+    const loadingTimer = window.setTimeout(() => setLoading(true), 0);
     const controller = new AbortController();
     const token = import.meta.env.VITE_TMDB_READ_TOKEN;
 
@@ -66,7 +66,10 @@ export function UpcomingMovie({ selectedMonth }: UpcomingMovieProps) {
         }
       });
 
-    return () => controller.abort();
+    return () => {
+      window.clearTimeout(loadingTimer);
+      controller.abort();
+    };
   }, [selectedMonth]);
 
   return (

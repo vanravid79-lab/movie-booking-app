@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FaUserShield, FaUser, FaLock, FaEnvelope, FaPhone, FaUserPlus, FaSignInAlt } from "react-icons/fa";
 
 export default function LoginPage() {
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleFillDemo = (targetRole: "user" | "admin") => {
     setMode("login");
@@ -75,6 +76,11 @@ export default function LoginPage() {
       );
 
       setTimeout(() => {
+        const destination = (location.state as { from?: string } | null)?.from;
+        if (destination && data.user.role !== "admin") {
+          navigate(destination);
+          return;
+        }
         if (data.user.role === "admin") {
           navigate("/admin/schedules");
         } else {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 interface Session {
@@ -16,6 +16,21 @@ interface CinemaGroup {
   sessions: Session[];
 }
 
+interface ScheduleResponse {
+  schedule_id: number;
+  start_time: string;
+  ticket_price: number;
+  hall?: {
+    hall_name: string;
+    hall_type?: string;
+    cinema?: {
+      cinema_id: number;
+      cinema_name: string;
+      cinema_location?: string;
+    };
+  };
+}
+
 export default function MovieShowtimes() {
   const { id: movieId } = useParams();
   const navigate = useNavigate();
@@ -24,7 +39,7 @@ export default function MovieShowtimes() {
   const [showtimesLoading, setShowtimesLoading] = useState(true);
 
   // Example selected date state (adjust according to your component implementation)
-  const [selectedDate, setSelectedDate] = useState({
+  const [selectedDate] = useState({
     label: "Today",
     date: "2026-09-03",
   });
@@ -34,7 +49,7 @@ export default function MovieShowtimes() {
     return timeString.slice(0, 5);
   };
 
-  const fetchShowtimes = async () => {
+  const fetchShowtimes = useCallback(async () => {
     try {
       setShowtimesLoading(true);
       // Fetching from your backend route linked to PostgreSQL
@@ -48,8 +63,9 @@ export default function MovieShowtimes() {
       // Group flat database results by Cinema
       const cinemaMap = new Map();
 
-      flatSchedules.forEach((item: any) => {
-        const cinema = item.hall?.cinema;
+      flatSchedules.forEach((item: ScheduleResponse) => {
+        const hall = item.hall;
+        const cinema = hall?.cinema;
         if (!cinema) return;
 
         if (!cinemaMap.has(cinema.cinema_id)) {
@@ -64,8 +80,8 @@ export default function MovieShowtimes() {
         cinemaMap.get(cinema.cinema_id).sessions.push({
           scheduleId: item.schedule_id,
           startTime: item.start_time,
-          hallName: item.hall.hall_name,
-          hallType: item.hall.hall_type ?? "Standard",
+          hallName: hall?.hall_name ?? "Unknown Hall",
+          hallType: hall?.hall_type ?? "Standard",
           ticketPrice: item.ticket_price,
         });
       });
@@ -76,13 +92,13 @@ export default function MovieShowtimes() {
     } finally {
       setShowtimesLoading(false);
     }
-  };
+  }, [movieId]);
 
   useEffect(() => {
-    if (movieId) {
-      fetchShowtimes();
-    }
-  }, [movieId, selectedDate]);
+    if (!movieId) return;
+    const fetchTimer = window.setTimeout(fetchShowtimes, 0);
+    return () => window.clearTimeout(fetchTimer);
+  }, [fetchShowtimes, movieId, selectedDate]);
 
   return (
     <section className="space-y-6">

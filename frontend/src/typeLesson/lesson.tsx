@@ -1,5 +1,3 @@
-import React from "react";
-
 // varaible to declare datatype as well
 const link: string =
   "https://www.bing.com/images/search?q=angkor+wat&form=HDRSC3&first=1";

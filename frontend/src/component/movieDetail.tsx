@@ -161,8 +161,6 @@ export default function MovieDetail() {
   // ==========================================
   useEffect(() => {
     if (!id || id === "all" || id === "all1") {
-      setMovieError("Invalid or missing Movie ID.");
-      setMovieLoading(false);
       return;
     }
 
@@ -251,11 +249,19 @@ export default function MovieDetail() {
     fetchShowtimes();
 
     return () => controller.abort();
-  }, [selectedDate.id]);
+  }, [id, selectedDate.id]);
 
   // ==========================================
   // RENDER LOADING / ERROR
   // ==========================================
+
+  if (!id || id === "all" || id === "all1") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-500">
+        Invalid or missing Movie ID.
+      </div>
+    );
+  }
 
   if (movieLoading) {
     return (
@@ -281,7 +287,7 @@ export default function MovieDetail() {
     <div className="min-h-screen bg-black">
       <div className="mx-auto max-w-5xl space-y-10 p-4 pb-16 pt-8">
         {/* MOVIE HERO */}
-        <section className="relative min-h-[420px] overflow-hidden rounded-lg border border-zinc-900 bg-zinc-950">
+        <section className="relative min-h-105 overflow-hidden rounded-lg border border-zinc-900 bg-zinc-950">
           <div className="absolute inset-0">
             <img
               src={
@@ -294,11 +300,11 @@ export default function MovieDetail() {
               alt={movie.title}
               className="h-full w-full object-cover object-center"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-black/40" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-r from-black via-black/50 to-black/40" />
+            <div className="absolute inset-0 bg-linear-to-t from-black via-transparent to-transparent" />
           </div>
 
-          <div className="relative z-10 flex min-h-[420px] flex-col justify-center p-8 md:p-12">
+          <div className="relative z-10 flex min-h-105 flex-col justify-center p-8 md:p-12">
             {movie.tagline && (
               <p className="mb-3 text-sm font-medium tracking-wide text-amber-400">
                 {movie.tagline}
@@ -399,7 +405,7 @@ export default function MovieDetail() {
 
             {/* DATE SELECTOR */}
             <div className="border-y border-zinc-900 py-4">
-              <div className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none]">
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
                 {dates.map((date) => (
                   <button
                     key={date.id}

@@ -1,10 +1,13 @@
-import { useState, useEffect, FormEvent } from "react";
-import { adminApi } from "../services/adminApi";
+import { useState, useEffect, type FormEvent } from "react";
+import { adminApi, type SchedulePayload } from "../services/adminApi";
 import type {
   AdminSchedule,
   AdminCinema,
   AdminHall,
 } from "../types/admin.types";
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 export default function ManageSchedules() {
   const [schedules, setSchedules] = useState<AdminSchedule[]>([]);
@@ -35,15 +38,16 @@ export default function ManageSchedules() {
       ]);
       setSchedules(fetchedSchedules);
       setCinemas(fetchedCinemas);
-    } catch (err: any) {
-      setError(err.message || "Failed to load admin data");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load admin data"));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAdminData();
+    const loadTimer = window.setTimeout(loadAdminData, 0);
+    return () => window.clearTimeout(loadTimer);
   }, []);
 
   // Fetch halls automatically when a cinema is selected
@@ -55,7 +59,7 @@ export default function ManageSchedules() {
       if (fetchedHalls.length > 0) {
         setForm((prev) => ({ ...prev, hall_id: fetchedHalls[0].hall_id }));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to fetch halls", err);
       setHalls([]);
     }
@@ -71,8 +75,8 @@ export default function ManageSchedules() {
       await adminApi.createSchedule(form);
       alert("Schedule created successfully!");
       loadAdminData();
-    } catch (err: any) {
-      alert(err.message || "Failed to create schedule");
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, "Failed to create schedule"));
     }
   };
 
@@ -82,8 +86,8 @@ export default function ManageSchedules() {
     try {
       await adminApi.deleteSchedule(scheduleId);
       setSchedules(schedules.filter((s) => s.schedule_id !== scheduleId));
-    } catch (err: any) {
-      alert(err.message || "Failed to delete schedule");
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, "Failed to delete schedule"));
     }
   };
 

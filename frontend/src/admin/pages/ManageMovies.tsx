@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import DataTable, { Column } from "../component/DataTable";
+import { useEffect, useState } from "react";
+import DataTable, { type Column } from "../component/DataTable";
 import { Plus, Pencil, Trash2, X, Star, Film } from "lucide-react";
 
 interface Movie {
@@ -111,7 +111,7 @@ interface MovieModalProps {
 function MovieModal({ open, onClose, onSubmit, initialData }: MovieModalProps) {
   const [form, setForm] = useState<MovieFormData>(initialData ?? EMPTY_FORM);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (open) setForm(initialData ?? EMPTY_FORM);
   }, [open, initialData]);
 
@@ -359,7 +359,7 @@ function ManageMovies() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-5 py-4 shadow-sm shadow-slate-900/[0.02]">
+      <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-5 py-4 shadow-sm shadow-slate-900/2">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">
             Manage Movies
