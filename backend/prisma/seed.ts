@@ -44,8 +44,10 @@ async function main() {
     TRUNCATE TABLE 
       ticket, payment, booking_food, booking_seat, booking, 
       schedule, seat, movie_genre_map, movie_genre, movie, 
-      hall, cinema, "user", schedule_status, booking_status 
-    CASCADE;
+      hall, cinema, "user", user_login_transaction, dashboard, report,
+      report_type, food_item, food_category, payment_type, payment_method,
+      payment_status, schedule_status, booking_status
+    RESTART IDENTITY CASCADE;
   `);
 
   const adminPassword = await bcrypt.hash("admin123", 10);
