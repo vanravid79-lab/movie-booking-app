@@ -264,10 +264,38 @@ function MovieModal({ open, onClose, onSubmit, initialData }: MovieModalProps) {
   );
 }
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5059/api";
+
 function ManageMovies() {
-  const [movies, setMovies] = useState<Movie[]>(INITIAL_MOVIES);
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const fetchMovies = () => {
+    fetch(`${API_URL}/movies`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const mapped: Movie[] = data.map((m: any) => ({
+            id: String(m.movie_id || m.id),
+            title: m.movie_title || m.title,
+            genre: m.genre_maps?.map((gm: any) => gm.genre?.genre_name).join(", ") || "Action / Drama",
+            duration: m.movie_duration || 120,
+            rating: Number(m.movie_rating || m.vote_average || 7.5),
+            language: m.movie_language || "English",
+            status: "Now Showing",
+          }));
+          setMovies(mapped);
+        }
+      })
+      .catch((err) => console.error("Failed to load movies:", err))
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(() => {
+    fetchMovies();
+  }, []);
 
   const editingMovie = movies.find((m) => m.id === editingId);
 
@@ -281,19 +309,36 @@ function ManageMovies() {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setMovies((prev) => prev.filter((m) => m.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this movie?")) return;
+    try {
+      await fetch(`${API_URL}/admin/movies/${id}`, { method: "DELETE" });
+      setMovies((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      console.error("Failed to delete movie:", err);
+    }
   };
 
-  const handleSubmit = (data: MovieFormData) => {
-    if (editingId) {
-      setMovies((prev) =>
-        prev.map((m) => (m.id === editingId ? { ...m, ...data } : m)),
-      );
-    } else {
-      setMovies((prev) => [{ id: `mv-${Date.now()}`, ...data }, ...prev]);
+  const handleSubmit = async (data: MovieFormData) => {
+    try {
+      if (editingId) {
+        await fetch(`${API_URL}/admin/movies/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+      } else {
+        await fetch(`${API_URL}/admin/movies`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+      }
+      fetchMovies();
+      setModalOpen(false);
+    } catch (err) {
+      console.error("Failed to save movie:", err);
     }
-    setModalOpen(false);
   };
 
   const columns: Column<Movie>[] = [

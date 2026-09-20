@@ -1,325 +1,231 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
-  TrendingDown,
   Ticket,
   Users,
   Film,
   DollarSign,
   ArrowUpRight,
   Clock,
+  Sparkles,
 } from "lucide-react";
 
-interface StatCardData {
+interface DashboardData {
+  totalRevenue: number;
+  todayRevenue: number;
+  ticketsSold: number;
+  activeMovies: number;
+  totalCustomers: number;
+  recentBookings: {
+    id: string;
+    customer: string;
+    email: string;
+    movie: string;
+    cinema: string;
+    hall: string;
+    seats: string[];
+    amount: number;
+    status: string;
+    date: string;
+  }[];
+}
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5059/api";
+
+function StatCard({
+  label,
+  value,
+  subtitle,
+  icon: Icon,
+}: {
   label: string;
   value: string;
-  delta: string;
-  trend: "up" | "down";
+  subtitle: string;
   icon: React.ElementType;
-}
-
-const STATS: StatCardData[] = [
-  {
-    label: "Today's Revenue",
-    value: "$4,286",
-    delta: "+12.4%",
-    trend: "up",
-    icon: DollarSign,
-  },
-  {
-    label: "Tickets Sold",
-    value: "1,204",
-    delta: "+6.1%",
-    trend: "up",
-    icon: Ticket,
-  },
-  {
-    label: "Active Movies",
-    value: "18",
-    delta: "-2",
-    trend: "down",
-    icon: Film,
-  },
-  {
-    label: "New Customers",
-    value: "342",
-    delta: "+18.9%",
-    trend: "up",
-    icon: Users,
-  },
-];
-
-interface RecentBooking {
-  id: string;
-  customer: string;
-  movie: string;
-  seats: number;
-  amount: string;
-  time: string;
-}
-
-const RECENT_BOOKINGS: RecentBooking[] = [
-  {
-    id: "BK-4821",
-    customer: "Sophea Ly",
-    movie: "Edge of Tomorrow Land",
-    seats: 2,
-    amount: "$14.00",
-    time: "2 min ago",
-  },
-  {
-    id: "BK-4820",
-    customer: "Marc Rivera",
-    movie: "Circuit Breaker",
-    seats: 4,
-    amount: "$28.00",
-    time: "9 min ago",
-  },
-  {
-    id: "BK-4819",
-    customer: "Dara Chan",
-    movie: "The Quiet Harbor",
-    seats: 1,
-    amount: "$7.00",
-    time: "17 min ago",
-  },
-  {
-    id: "BK-4818",
-    customer: "Priya Nair",
-    movie: "Neon Alley",
-    seats: 3,
-    amount: "$21.00",
-    time: "31 min ago",
-  },
-  {
-    id: "BK-4817",
-    customer: "Tola Sok",
-    movie: "The Last Monsoon",
-    seats: 2,
-    amount: "$14.00",
-    time: "48 min ago",
-  },
-];
-
-interface UpcomingShow {
-  movie: string;
-  screen: string;
-  time: string;
-  occupancy: number; // 0-100
-}
-
-const UPCOMING_SHOWS: UpcomingShow[] = [
-  {
-    movie: "Edge of Tomorrow Land",
-    screen: "Screen 1",
-    time: "4:30 PM",
-    occupancy: 82,
-  },
-  {
-    movie: "Circuit Breaker",
-    screen: "IMAX Hall",
-    time: "5:00 PM",
-    occupancy: 64,
-  },
-  { movie: "Neon Alley", screen: "Screen 3", time: "6:15 PM", occupancy: 41 },
-  {
-    movie: "The Quiet Harbor",
-    screen: "Screen 2",
-    time: "7:00 PM",
-    occupancy: 90,
-  },
-];
-
-// Weekly revenue, purely for the inline sparkline bars below.
-const WEEKLY_REVENUE = [
-  { day: "Mon", value: 38 },
-  { day: "Tue", value: 52 },
-  { day: "Wed", value: 44 },
-  { day: "Thu", value: 61 },
-  { day: "Fri", value: 78 },
-  { day: "Sat", value: 95 },
-  { day: "Sun", value: 71 },
-];
-
-function StatCard({ label, value, delta, trend, icon: Icon }: StatCardData) {
+}) {
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-4">
+    <div className="bg-[#18181f] border border-zinc-800/80 rounded-xl p-5 shadow-lg">
       <div className="flex items-start justify-between">
-        <div className="w-9 h-9 rounded-md bg-rose-50 flex items-center justify-center">
-          <Icon size={17} className="text-rose-600" strokeWidth={2} />
+        <div className="w-10 h-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+          <Icon size={18} className="text-rose-400" strokeWidth={2.2} />
         </div>
-        <span
-          className={`inline-flex items-center gap-0.5 text-xs font-medium ${
-            trend === "up" ? "text-emerald-600" : "text-rose-500"
-          }`}
-        >
-          {trend === "up" ? (
-            <TrendingUp size={13} />
-          ) : (
-            <TrendingDown size={13} />
-          )}
-          {delta}
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+          <TrendingUp size={12} />
+          Live
         </span>
       </div>
-      <p className="mt-3 text-2xl font-semibold text-slate-900">{value}</p>
-      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-4 text-2xl font-bold text-white tracking-tight">{value}</p>
+      <div className="mt-1 flex items-center justify-between text-xs text-zinc-400">
+        <span>{label}</span>
+        <span className="text-zinc-500">{subtitle}</span>
+      </div>
     </div>
   );
 }
 
 function DashboardHome() {
-  const maxRevenue = Math.max(...WEEKLY_REVENUE.map((d) => d.value));
+  const navigate = useNavigate();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const userStr = localStorage.getItem("cambo_user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const adminName = user?.name || "Administrator";
+
+  useEffect(() => {
+    fetch(`${API_URL}/admin/dashboard-stats`)
+      .then((res) => res.json())
+      .then((resData) => setData(resData))
+      .catch((err) => console.error("Failed to load dashboard stats:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const formatTimeAgo = (dateStr: string) => {
+    const diffMin = Math.round((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.round(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return new Date(dateStr).toLocaleDateString();
+  };
 
   return (
     <div className="space-y-6">
-      {/* Welcome */}
-      <div>
-        <h2 className="text-xl font-semibold text-slate-900">
-          Good afternoon, Jamie
-        </h2>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Here's what's happening across your theatres today.
-        </p>
+      {/* Welcome Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-rose-950/40 via-zinc-900 to-zinc-900 border border-rose-500/20 rounded-2xl p-6">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-400">
+            <Sparkles size={14} />
+            Box Office Operations
+          </div>
+          <h2 className="text-2xl font-serif font-bold text-white mt-1">
+            Welcome back, {adminName}
+          </h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            Real-time box office monitoring, ticket reservations, and theatre stats.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/admin/schedules")}
+            className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-500 text-white transition shadow-lg shadow-rose-600/20"
+          >
+            Manage Showtimes
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/admin/bookings")}
+            className="px-4 py-2 text-xs font-semibold rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition"
+          >
+            All Bookings
+          </button>
+        </div>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map((stat) => (
-          <StatCard key={stat.label} {...stat} />
-        ))}
+        <StatCard
+          label="Today's Revenue"
+          value={`$${(data?.todayRevenue || 0).toFixed(2)}`}
+          subtitle="All locations"
+          icon={DollarSign}
+        />
+        <StatCard
+          label="Total Revenue"
+          value={`$${(data?.totalRevenue || 0).toFixed(2)}`}
+          subtitle="Lifetime sales"
+          icon={TrendingUp}
+        />
+        <StatCard
+          label="Tickets Sold"
+          value={`${data?.ticketsSold || 0}`}
+          subtitle="Reserved seats"
+          icon={Ticket}
+        />
+        <StatCard
+          label="Active Movies"
+          value={`${data?.activeMovies || 0}`}
+          subtitle="Showing now"
+          icon={Film}
+        />
       </div>
 
-      {/* Revenue + upcoming shows */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Weekly revenue */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-lg p-5">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-sm font-medium text-slate-900">
-                Revenue this week
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Compared to last week
-              </p>
-            </div>
-            <button className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:text-rose-700">
-              View report
-              <ArrowUpRight size={13} />
-            </button>
+      {/* Recent Bookings Table */}
+      <div className="bg-[#18181f] border border-zinc-800 rounded-xl overflow-hidden shadow-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <div>
+            <h3 className="text-base font-semibold text-white">Recent Customer Bookings</h3>
+            <p className="text-xs text-zinc-400 mt-0.5">Latest ticket sales and reservations</p>
           </div>
-
-          <div className="flex items-end justify-between gap-3 h-40">
-            {WEEKLY_REVENUE.map((d) => (
-              <div
-                key={d.day}
-                className="flex-1 flex flex-col items-center gap-2"
-              >
-                <div className="w-full flex items-end justify-center h-32">
-                  <div
-                    className="w-full max-w-8 rounded-t-sm bg-rose-100 hover:bg-rose-200 transition-colors"
-                    style={{
-                      height: `${(d.value / maxRevenue) * 100}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-slate-400">{d.day}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Upcoming showtimes */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <h3 className="text-sm font-medium text-slate-900 mb-4">
-            Upcoming showtimes
-          </h3>
-          <ul className="space-y-4">
-            {UPCOMING_SHOWS.map((show) => (
-              <li key={`${show.movie}-${show.time}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">
-                      {show.movie}
-                    </p>
-                    <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Clock size={11} />
-                      {show.time} · {show.screen}
-                    </p>
-                  </div>
-                  <span className="text-xs font-medium text-slate-500 shrink-0 ml-2">
-                    {show.occupancy}%
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-rose-500"
-                    style={{ width: `${show.occupancy}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Recent bookings */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <h3 className="text-sm font-medium text-slate-900">
-            Recent bookings
-          </h3>
-          <button className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:text-rose-700">
-            View all
+          <button
+            type="button"
+            onClick={() => navigate("/admin/bookings")}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-rose-400 hover:text-rose-300 transition"
+          >
+            View all bookings
             <ArrowUpRight size={13} />
           </button>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/60">
-              <th className="px-5 py-2.5 text-left font-medium text-slate-500">
-                Booking
-              </th>
-              <th className="px-5 py-2.5 text-left font-medium text-slate-500">
-                Customer
-              </th>
-              <th className="px-5 py-2.5 text-left font-medium text-slate-500">
-                Movie
-              </th>
-              <th className="px-5 py-2.5 text-center font-medium text-slate-500">
-                Seats
-              </th>
-              <th className="px-5 py-2.5 text-right font-medium text-slate-500">
-                Amount
-              </th>
-              <th className="px-5 py-2.5 text-right font-medium text-slate-500">
-                Time
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {RECENT_BOOKINGS.map((b) => (
-              <tr
-                key={b.id}
-                className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 transition-colors"
-              >
-                <td className="px-5 py-3 text-slate-500">{b.id}</td>
-                <td className="px-5 py-3 font-medium text-slate-900">
-                  {b.customer}
-                </td>
-                <td className="px-5 py-3 text-slate-600">{b.movie}</td>
-                <td className="px-5 py-3 text-center text-slate-600">
-                  {b.seats}
-                </td>
-                <td className="px-5 py-3 text-right font-medium text-slate-900">
-                  {b.amount}
-                </td>
-                <td className="px-5 py-3 text-right text-slate-400">
-                  {b.time}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        {loading ? (
+          <div className="p-8 text-center text-sm text-zinc-500">Loading box office data...</div>
+        ) : !data?.recentBookings.length ? (
+          <div className="p-8 text-center text-sm text-zinc-500">No bookings placed yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-zinc-800 bg-zinc-900/40 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  <th className="px-6 py-3">Booking ID</th>
+                  <th className="px-6 py-3">Customer</th>
+                  <th className="px-6 py-3">Movie</th>
+                  <th className="px-6 py-3">Cinema / Hall</th>
+                  <th className="px-6 py-3 text-center">Seats</th>
+                  <th className="px-6 py-3 text-right">Total</th>
+                  <th className="px-6 py-3 text-right">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/60">
+                {data.recentBookings.map((b) => (
+                  <tr key={b.id} className="hover:bg-zinc-800/30 transition">
+                    <td className="px-6 py-3.5 font-mono text-xs font-bold text-rose-400">
+                      {b.id}
+                    </td>
+                    <td className="px-6 py-3.5">
+                      <p className="font-medium text-white">{b.customer}</p>
+                      <p className="text-xs text-zinc-500">{b.email}</p>
+                    </td>
+                    <td className="px-6 py-3.5 font-medium text-zinc-200">{b.movie}</td>
+                    <td className="px-6 py-3.5 text-xs text-zinc-400">
+                      <p className="text-zinc-300">{b.cinema}</p>
+                      <p className="text-zinc-500">{b.hall}</p>
+                    </td>
+                    <td className="px-6 py-3.5 text-center">
+                      <div className="flex flex-wrap justify-center gap-1 max-w-xs mx-auto">
+                        {b.seats.map((seat) => (
+                          <span
+                            key={seat}
+                            className="inline-block rounded bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 text-[10px] font-bold text-rose-300"
+                          >
+                            {seat}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-bold text-emerald-400">
+                      ${b.amount.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-xs text-zinc-500">
+                      {formatTimeAgo(b.date)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

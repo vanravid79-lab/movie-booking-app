@@ -238,10 +238,37 @@ function CinemaModal({
   );
 }
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5059/api";
+
 function ManageCinemas() {
-  const [cinemas, setCinemas] = useState<Cinema[]>(INITIAL_CINEMAS);
+  const [cinemas, setCinemas] = useState<Cinema[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const fetchCinemas = () => {
+    fetch(`${API_URL}/admin/cinemas`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const mapped: Cinema[] = data.map((c: any) => ({
+            id: String(c.cinema_id),
+            name: c.cinema_name,
+            location: c.cinema_location || "Phnom Penh",
+            screens: c.halls?.length || 0,
+            seats: (c.halls?.length || 0) * 80,
+            status: (c.cinema_status as any) || "Active",
+          }));
+          setCinemas(mapped);
+        }
+      })
+      .catch((err) => console.error("Failed to load cinemas:", err))
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(() => {
+    fetchCinemas();
+  }, []);
 
   const editingCinema = cinemas.find((c) => c.id === editingId);
 
@@ -255,19 +282,36 @@ function ManageCinemas() {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setCinemas((prev) => prev.filter((c) => c.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this cinema?")) return;
+    try {
+      await fetch(`${API_URL}/admin/cinemas/${id}`, { method: "DELETE" });
+      setCinemas((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      console.error("Failed to delete cinema:", err);
+    }
   };
 
-  const handleSubmit = (data: CinemaFormData) => {
-    if (editingId) {
-      setCinemas((prev) =>
-        prev.map((c) => (c.id === editingId ? { ...c, ...data } : c)),
-      );
-    } else {
-      setCinemas((prev) => [{ id: `cn-${Date.now()}`, ...data }, ...prev]);
+  const handleSubmit = async (data: CinemaFormData) => {
+    try {
+      if (editingId) {
+        await fetch(`${API_URL}/admin/cinemas/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+      } else {
+        await fetch(`${API_URL}/admin/cinemas`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+      }
+      fetchCinemas();
+      setModalOpen(false);
+    } catch (err) {
+      console.error("Failed to save cinema:", err);
     }
-    setModalOpen(false);
   };
 
   const columns: Column<Cinema>[] = [

@@ -111,6 +111,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("aba");
   const [submitted, setSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState<number | null>(null);
+  const [ticketNumber, setTicketNumber] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [customer, setCustomer] = useState({ name: "", email: "", phone: "" });
@@ -242,6 +243,7 @@ export default function CheckoutPage() {
         throw new Error(data.message || "Failed to place booking.");
       }
       setBookingId(data.bookingId);
+      if (data.ticketNumber) setTicketNumber(data.ticketNumber);
       setSubmitted(true);
     } catch (error) {
       setSubmitError(
@@ -258,22 +260,37 @@ export default function CheckoutPage() {
         <section className="w-full max-w-lg rounded-2xl border border-amber-400/20 bg-zinc-950/90 p-8 text-center shadow-2xl shadow-black/40 sm:p-12">
           <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-400" />
           <p className="mt-6 text-xs font-bold uppercase tracking-[0.25em] text-amber-400">
-            Order received
+            Booking Confirmed
           </p>
           <h1 className="mt-2 font-serif text-3xl font-bold">
-            Enjoy the show, {customer.name}
+            Enjoy the show, {customer.name || "Movie Lover"}!
           </h1>
+          {ticketNumber && (
+            <div className="mt-4 inline-block rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-mono font-bold text-amber-300">
+              Ticket #{ticketNumber}
+            </div>
+          )}
           <p className="mt-4 text-sm leading-6 text-zinc-400">
-            Booking #{bookingId} for {schedule.movie_title} is confirmed. A
+            Booking #{bookingId} for <strong className="text-white">{schedule.movie_title}</strong> is confirmed. A
             confirmation will be sent to {customer.email}.
           </p>
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="mt-8 rounded-lg bg-amber-400 px-6 py-3 font-semibold text-black hover:bg-amber-300"
-          >
-            Return home
-          </button>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={() => navigate("/tickets")}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 px-6 py-3.5 font-bold text-black shadow-lg shadow-amber-400/25 transition hover:brightness-105"
+            >
+              <Ticket className="h-4 w-4" />
+              View My Tickets
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="rounded-xl border border-white/10 bg-zinc-900 px-6 py-3.5 font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
+            >
+              Return Home
+            </button>
+          </div>
         </section>
       </main>
     );
@@ -419,9 +436,38 @@ export default function CheckoutPage() {
                 </div>
               )}
               {paymentMethod === "aba" && (
-                <div className="mt-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-sm text-cyan-100">
-                  Pay with ABA PAYWAY using your Cambodia mobile banking
-                  account.
+                <div className="mt-4 rounded-2xl border border-red-500/30 bg-zinc-900/90 p-5 text-center shadow-lg">
+                  <div className="flex items-center justify-center gap-2 text-sm font-bold text-red-500 uppercase tracking-wider">
+                    <span className="rounded bg-red-600 px-2 py-0.5 text-[11px] font-black text-white">KHQR</span>
+                    Bakong / ABA KHQR Scan
+                  </div>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Scan with ABA Mobile, Bakong, or any Cambodian banking app to complete payment.
+                  </p>
+                  <div className="mx-auto mt-4 w-44 rounded-xl border-2 border-red-500/50 bg-white p-3 shadow-md">
+                    <div className="flex items-center justify-between border-b border-zinc-200 pb-1.5">
+                      <span className="text-[11px] font-black tracking-wider text-red-600">KHQR</span>
+                      <span className="text-[9px] font-bold text-zinc-700">CAMBO CINEMA</span>
+                    </div>
+                    <div className="my-2.5 flex items-center justify-center">
+                      <svg className="h-32 w-32" viewBox="0 0 100 100">
+                        <rect width="100" height="100" fill="#ffffff" />
+                        <path fill="#000000" d="M10,10 h25 v25 h-25 z M15,15 v15 h15 v-15 z M20,20 h5 v5 h-5 z" />
+                        <path fill="#000000" d="M65,10 h25 v25 h-25 z M70,15 v15 h15 v-15 z M75,20 h5 v5 h-5 z" />
+                        <path fill="#000000" d="M10,65 h25 v25 h-25 z M15,70 v15 h15 v-15 z M20,75 h5 v5 h-5 z" />
+                        <path fill="#000000" d="M42,12 h6 v6 h-6 z M52,12 h6 v6 h-6 z M42,22 h16 v6 h-16 z M42,32 h6 v6 h-6 z" />
+                        <path fill="#000000" d="M12,42 h6 v6 h-6 z M22,42 h16 v6 h-16 z M12,52 h6 v6 h-6 z M32,52 h6 v6 h-6 z" />
+                        <path fill="#000000" d="M65,42 h16 v6 h-16 z M72,52 h6 v6 h-6 z M82,42 h6 v16 h-6 z" />
+                        <path fill="#000000" d="M42,65 h6 v16 h-6 z M52,72 h6 v6 h-6 z M42,85 h16 v6 h-16 z" />
+                        <path fill="#000000" d="M65,65 h6 v6 h-6 z M75,65 h12 v6 h-12 z M72,75 h6 v16 h-6 z M82,82 h6 v6 h-6 z" />
+                        <circle cx="50" cy="50" r="9" fill="#e11d48" />
+                        <text x="50" y="53.5" fill="#ffffff" fontSize="7" fontWeight="900" textAnchor="middle">KH</text>
+                      </svg>
+                    </div>
+                    <div className="border-t border-zinc-200 pt-1.5 text-center text-xs font-bold text-zinc-900">
+                      ${totalAmount.toFixed(2)} USD
+                    </div>
+                  </div>
                 </div>
               )}
               {paymentMethod === "acleda" && (

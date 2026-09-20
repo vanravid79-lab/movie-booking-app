@@ -26,4 +26,7 @@ dist-ssr
 *.sln
 *.sw?
 
-
+# Documentation
+Movie Ticket Booking MGM System.md
+*.md
+!README.md

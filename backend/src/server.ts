@@ -415,7 +415,16 @@ app.post("/api/bookings", authenticateJWT, async (req: AuthRequest, res) => {
           },
         });
 
-        return booking;
+        const ticketNumber = `TKT-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+        await transaction.ticket.create({
+          data: {
+            booking_id: booking.booking_id,
+            ticket_number: ticketNumber,
+            ticket_status: "Valid",
+          },
+        });
+
+        return { ...booking, ticketNumber };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -423,6 +432,7 @@ app.post("/api/bookings", authenticateJWT, async (req: AuthRequest, res) => {
     return res.status(201).json({
       ok: true,
       bookingId: booking.booking_id,
+      ticketNumber: booking.ticketNumber,
       totalAmount: Number(booking.total_amount),
       seats: booking.booking_seats.map(({ seat }) => seat.seat_number),
     });
@@ -443,6 +453,108 @@ app.post("/api/bookings", authenticateJWT, async (req: AuthRequest, res) => {
     return res
       .status(500)
       .json({ ok: false, message: "Failed to create booking." });
+  }
+});
+
+// ======================================================
+// USER TICKETS API
+// ======================================================
+
+app.get("/api/bookings/my-tickets", authenticateJWT, async (req: AuthRequest, res) => {
+  const userId = req.user?.sub;
+  if (!userId) {
+    return res.status(401).json({ ok: false, message: "Unauthorized." });
+  }
+
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: { user_id: userId },
+      orderBy: { booking_date: "desc" },
+      include: {
+        schedule: {
+          include: {
+            movie: true,
+            hall: {
+              include: { cinema: true },
+            },
+          },
+        },
+        booking_seats: {
+          include: { seat: true },
+        },
+        booking_foods: {
+          include: { food_item: true },
+        },
+        tickets: true,
+        payments: {
+          include: {
+            payment_method: true,
+            payment_status: true,
+          },
+        },
+        booking_status: true,
+      },
+    });
+
+    const tickets = bookings.map((b) => {
+      const ticketRec = b.tickets[0];
+      const paymentRec = b.payments[0];
+
+      return {
+        booking_id: b.booking_id,
+        booking_date: b.booking_date,
+        total_amount: Number(b.total_amount),
+        booking_status: b.booking_status?.booking_status_name || "Confirmed",
+        ticket_number: ticketRec?.ticket_number || `TKT-${b.booking_id.toString().padStart(6, "0")}`,
+        ticket_status: ticketRec?.ticket_status || "Valid",
+        movie: {
+          id: b.schedule.movie_id,
+          title: b.schedule.movie.movie_title,
+          poster: b.schedule.movie.movie_poster,
+          duration: b.schedule.movie.movie_duration,
+          rating: b.schedule.movie.movie_rating ? Number(b.schedule.movie.movie_rating) : null,
+        },
+        schedule: {
+          schedule_id: b.schedule.schedule_id,
+          date: b.schedule.schedule_date,
+          start_time: b.schedule.start_time,
+          end_time: b.schedule.end_time,
+          price: Number(b.schedule.ticket_price),
+        },
+        cinema: {
+          name: b.schedule.hall.cinema.cinema_name,
+          location: b.schedule.hall.cinema.cinema_location,
+          phone: b.schedule.hall.cinema.cinema_phone,
+        },
+        hall: {
+          name: b.schedule.hall.hall_name,
+          type: b.schedule.hall.hall_type,
+        },
+        seats: b.booking_seats.map((bs) => ({
+          seat_id: bs.seat_id,
+          seat_number: bs.seat.seat_number,
+          seat_type: bs.seat.seat_type,
+          seat_price: Number(bs.seat_price),
+        })),
+        foods: b.booking_foods.map((bf) => ({
+          name: bf.food_item.food_name,
+          quantity: bf.food_quantity,
+          price: Number(bf.food_unit_price),
+        })),
+        payment: paymentRec
+          ? {
+              method: paymentRec.payment_method?.payment_method_name || "Cash",
+              status: paymentRec.payment_status?.payment_status_name || "Pending",
+              amount: Number(paymentRec.payment_amount),
+            }
+          : null,
+      };
+    });
+
+    return res.json({ ok: true, tickets });
+  } catch (error) {
+    console.error("Failed to fetch user tickets:", error);
+    return res.status(500).json({ ok: false, message: "Failed to fetch tickets." });
   }
 });
 

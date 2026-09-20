@@ -1,4 +1,4 @@
-﻿import { PrismaClient, UserRole } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -215,6 +215,28 @@ async function main() {
   });
 
   const allCinemas = [c1, c2, c3, c4, c5, c6];
+
+  // Seed 80 seats per hall (Rows A-H, 10 seats per row)
+  const rows = ["A", "B", "C", "D", "E", "F", "G", "H"];
+  const seatsData: any[] = [];
+  for (const cinema of allCinemas) {
+    for (const hall of cinema.halls) {
+      for (let rIdx = 0; rIdx < rows.length; rIdx++) {
+        const rowLetter = rows[rIdx];
+        const seatType = rIdx >= 5 ? "VIP" : "Standard";
+        for (let num = 1; num <= 10; num++) {
+          seatsData.push({
+            hall_id: hall.hall_id,
+            seat_number: `${rowLetter}${num}`,
+            seat_type: seatType,
+            seat_status: "Available",
+          });
+        }
+      }
+    }
+  }
+  await prisma.seat.createMany({ data: seatsData, skipDuplicates: true });
+  console.log(`💺 Seeded ${seatsData.length} seats across all cinema halls.`);
 
   // Fetch TMDB movies
   const token = process.env.TMDB_API_KEY || "";

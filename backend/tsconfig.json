@@ -11,5 +11,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "prisma/**/*"]
+  "include": ["src/**/*", "prisma/**/*"],
+  "exclude": [
+    "src/controllers/bookingController.ts",
+    "src/controllers/reportController.ts",
+    "src/controllers/authController.ts",
+    "src/routes/bookingRoutes.ts",
+    "src/routes/reportRoutes.ts"
+  ]
 }

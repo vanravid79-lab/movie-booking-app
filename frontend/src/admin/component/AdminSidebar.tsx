@@ -36,14 +36,12 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Screens & Seats", icon: Armchair, key: "screens" },
       { label: "Bookings", icon: Ticket, key: "bookings" },
       { label: "Theatres", icon: Building2, key: "theatres" },
-      { label: "Offers", icon: BadgePercent, key: "offers" },
     ],
   },
   {
     label: "General",
     items: [
       { label: "Settings", icon: Settings, key: "settings" },
-      { label: "Support", icon: LifeBuoy, key: "support" },
     ],
   },
 ];
