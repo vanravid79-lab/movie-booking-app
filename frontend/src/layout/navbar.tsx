@@ -1,6 +1,7 @@
 ﻿import { Navbar, NavbarCollapse, NavbarToggle } from "flowbite-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
 import { IoSearchSharp } from "react-icons/io5";
 import { LuTicket } from "react-icons/lu";
@@ -8,28 +9,50 @@ import { FaRegUser } from "react-icons/fa";
 import { IoNotificationsOutline } from "react-icons/io5";
 import { FiLogOut } from "react-icons/fi";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5059/api";
+
+interface SearchMovie {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  release_date: string;
+}
+
+interface CurrentUser {
+  name?: string;
+  role?: string;
+}
+
+const getStoredUser = (): CurrentUser | null => {
+  const userStr = localStorage.getItem("cambo_user");
+
+  if (!userStr) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(userStr) as CurrentUser;
+  } catch {
+    return null;
+  }
+};
+
 export function NavbarCom() {
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(
+    getStoredUser,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchMovie[]>([]);
+  const [searchMessage, setSearchMessage] = useState("");
+  const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   const syncUser = () => {
-    const userStr = localStorage.getItem("cambo_user");
-    if (userStr) {
-      try {
-        setCurrentUser(JSON.parse(userStr));
-      } catch (e) {
-        setCurrentUser(null);
-      }
-    } else {
-      setCurrentUser(null);
-    }
+    setCurrentUser(getStoredUser());
   };
 
   useEffect(() => {
-    syncUser();
-
-    // Listen to storage and custom auth state changes
     window.addEventListener("storage", syncUser);
     return () => {
       window.removeEventListener("storage", syncUser);
@@ -43,23 +66,147 @@ export function NavbarCom() {
     navigate("/login");
   };
 
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+
+    if (query.length < 2) {
+      setSearchResults([]);
+      setSearchMessage("Enter at least 2 characters.");
+      return;
+    }
+  };
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (query.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSearching(true);
+      setSearchMessage("");
+
+      try {
+        const response = await fetch(
+          `${API_URL}/movies/search?query=${encodeURIComponent(query)}`,
+          { signal: controller.signal },
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Movie search failed.");
+        }
+
+        setSearchResults((data.results || []).slice(0, 5));
+        setSearchMessage(data.results?.length ? "" : "No movies found.");
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setSearchResults([]);
+        setSearchMessage(
+          error instanceof Error ? error.message : "Movie search failed.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setSearching(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery]);
+
+  const handleSearchQueryChange = (value: string) => {
+    setSearchQuery(value);
+
+    if (value.trim().length < 2) {
+      setSearchResults([]);
+      setSearchMessage("");
+      setSearching(false);
+    }
+  };
+
+  const handleMovieSelect = (movieId: number) => {
+    setSearchResults([]);
+    setSearchMessage("");
+    navigate(`/movie/${movieId}`);
+  };
+
+  const searchResultsPanel = (
+    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-96 overflow-y-auto rounded-2xl border border-zinc-700/80 bg-zinc-950/95 p-1 shadow-2xl shadow-black/40 backdrop-blur">
+      {searching ? (
+        <p className="px-4 py-3 text-sm text-zinc-400">Searching TMDB...</p>
+      ) : searchMessage ? (
+        <p className="px-4 py-3 text-sm text-zinc-400">{searchMessage}</p>
+      ) : (
+        searchResults.map((movie) => (
+          <button
+            key={movie.id}
+            type="button"
+            onClick={() => handleMovieSelect(movie.id)}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-zinc-800"
+          >
+            <img
+              src={
+                movie.poster_path
+                  ? `https://image.tmdb.org/t/p/w92${movie.poster_path}`
+                  : "https://placehold.co/46x68?text=N/A"
+              }
+              alt=""
+              className="h-12 w-9 rounded object-cover"
+            />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-white">
+                {movie.title}
+              </span>
+              <span className="text-xs text-zinc-500">
+                {movie.release_date || "Release date unknown"}
+              </span>
+            </span>
+          </button>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <Navbar
       fluid
       rounded={false}
-      className="sticky top-0 z-50 w-full shrink-0 !bg-[#27272a] px-6 py-4"
+      className="sticky top-0 z-50 w-full shrink-0 bg-[#27272a]! px-6 py-4"
     >
       <div className="flex w-full items-center justify-between gap-6">
         {/* Left: Search input */}
-        <div className="hidden items-center justify-between gap-2 rounded-full border border-gray-600 bg-transparent py-2 pl-5 pr-2 md:flex md:w-64">
-          <input
-            type="text"
-            placeholder="Search Movies...."
-            className="w-full bg-transparent text-sm text-gray-300 placeholder-gray-400 outline-none"
-          />
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-300">
-            <IoSearchSharp className="h-4 w-4" />
-          </span>
+        <div className="relative hidden md:block md:w-64">
+          <form
+            onSubmit={handleSearch}
+            className="flex items-center justify-between gap-2 rounded-full border border-gray-600 bg-transparent py-2 pl-5 pr-2"
+          >
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => handleSearchQueryChange(event.target.value)}
+              placeholder="Search Movies..."
+              className="w-full bg-transparent text-sm text-gray-300 placeholder-gray-400 outline-none"
+            />
+            <button
+              type="submit"
+              aria-label="Search movies"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-300 hover:text-white"
+            >
+              <IoSearchSharp className="h-4 w-4" />
+            </button>
+          </form>
+          {(searching || searchMessage || searchResults.length > 0) &&
+            searchResultsPanel}
         </div>
 
         {/* Center: Logo */}
@@ -94,7 +241,7 @@ export function NavbarCom() {
               <Link
                 to="/user"
                 title="View Personal Profile"
-                className="flex items-center gap-2 rounded-full bg-gradient-to-br from-red-800 to-red-950 px-3.5 py-1.5 text-xs font-semibold text-gray-100 transition hover:from-red-700 hover:to-red-900 border border-red-500/30"
+                className="flex items-center gap-2 rounded-full bg-linear-to-br from-red-800 to-red-950 px-3.5 py-1.5 text-xs font-semibold text-gray-100 transition hover:from-red-700 hover:to-red-900 border border-red-500/30"
               >
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white uppercase">
                   {currentUser.name ? currentUser.name.charAt(0) : "U"}
@@ -136,13 +283,28 @@ export function NavbarCom() {
 
       {/* Mobile collapse */}
       <NavbarCollapse className="md:hidden">
-        <div className="mt-2 flex items-center justify-between gap-2 rounded-full border border-gray-600 px-5 py-2">
-          <input
-            type="text"
-            placeholder="Search Movies...."
-            className="w-full bg-transparent text-sm text-gray-300 placeholder-gray-400 outline-none"
-          />
-          <IoSearchSharp className="h-4 w-4 shrink-0 text-gray-300" />
+        <div className="relative mt-2">
+          <form
+            onSubmit={handleSearch}
+            className="flex items-center justify-between gap-2 rounded-full border border-gray-600 px-5 py-2"
+          >
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => handleSearchQueryChange(event.target.value)}
+              placeholder="Search Movies..."
+              className="w-full bg-transparent text-sm text-gray-300 placeholder-gray-400 outline-none"
+            />
+            <button
+              type="submit"
+              aria-label="Search movies"
+              className="text-gray-300 hover:text-white"
+            >
+              <IoSearchSharp className="h-4 w-4" />
+            </button>
+          </form>
+          {(searching || searchMessage || searchResults.length > 0) &&
+            searchResultsPanel}
         </div>
 
         <Link

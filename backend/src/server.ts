@@ -182,112 +182,269 @@ app.use("/api/admin", adminRoutes);
 // BOOKING API
 // ======================================================
 
-app.post(
-  "/api/bookings",
-  authenticateJWT,
-  async (req: AuthRequest, res) => {
-    const requestBody = (req as AuthRequest & {
-      body: { scheduleId?: unknown; seatIds?: unknown[] };
-    }).body;
-    const scheduleId = Number(requestBody.scheduleId);
-    const seatIds = Array.isArray(requestBody.seatIds)
-      ? requestBody.seatIds.map(Number)
-      : [];
-
-    if (
-      !req.user?.sub ||
-      !Number.isInteger(scheduleId) ||
-      scheduleId <= 0 ||
-      seatIds.length === 0 ||
-      seatIds.some((seatId) => !Number.isInteger(seatId) || seatId <= 0)
-    ) {
-      return res.status(400).json({
-        ok: false,
-        message: "A valid schedule and at least one seat are required.",
-      });
+app.post("/api/bookings", authenticateJWT, async (req: AuthRequest, res) => {
+  const requestBody = (
+    req as AuthRequest & {
+      body: {
+        scheduleId?: unknown;
+        seatIds?: unknown[];
+        foodItems?: unknown[];
+        paymentMethod?: unknown;
+      };
     }
+  ).body;
+  const scheduleId = Number(requestBody.scheduleId);
+  const seatIds = Array.isArray(requestBody.seatIds)
+    ? requestBody.seatIds.map(Number)
+    : [];
+  const paymentMethod =
+    typeof requestBody.paymentMethod === "string"
+      ? requestBody.paymentMethod
+      : "Cash at cinema";
+  const rawFoodItems = Array.isArray(requestBody.foodItems)
+    ? requestBody.foodItems
+    : [];
 
-    const uniqueSeatIds = [...new Set(seatIds)];
+  if (
+    !req.user?.sub ||
+    !Number.isInteger(scheduleId) ||
+    scheduleId <= 0 ||
+    seatIds.length === 0 ||
+    seatIds.some((seatId) => !Number.isInteger(seatId) || seatId <= 0)
+  ) {
+    return res.status(400).json({
+      ok: false,
+      message: "A valid schedule and at least one seat are required.",
+    });
+  }
 
-    try {
-      const booking = await prisma.$transaction(
-        async (transaction) => {
-          const schedule = await transaction.schedule.findUnique({
-            where: { schedule_id: scheduleId },
-            include: { hall: true },
-          });
+  const uniqueSeatIds = [...new Set(seatIds)];
 
-          if (!schedule) {
-            throw new Error("SHOWTIME_NOT_FOUND");
+  try {
+    const booking = await prisma.$transaction(
+      async (transaction) => {
+        const schedule = await transaction.schedule.findUnique({
+          where: { schedule_id: scheduleId },
+          include: { hall: true },
+        });
+
+        if (!schedule) {
+          throw new Error("SHOWTIME_NOT_FOUND");
+        }
+
+        const seats = await transaction.seat.findMany({
+          where: {
+            seat_id: { in: uniqueSeatIds },
+            hall_id: schedule.hall_id,
+            seat_status: "Available",
+          },
+        });
+
+        if (seats.length !== uniqueSeatIds.length) {
+          throw new Error("SEAT_NOT_AVAILABLE");
+        }
+
+        const alreadyBooked = await transaction.bookingSeat.findMany({
+          where: {
+            seat_id: { in: uniqueSeatIds },
+            booking: { schedule_id: scheduleId },
+          },
+          select: { seat_id: true },
+        });
+
+        if (alreadyBooked.length > 0) {
+          throw new Error("SEAT_ALREADY_BOOKED");
+        }
+
+        const confirmedStatus = await transaction.bookingStatus.findUnique({
+          where: { booking_status_name: "Confirmed" },
+        });
+
+        const parsedFoodItems = rawFoodItems.flatMap((item) => {
+          if (!item || typeof item !== "object") {
+            return [];
           }
 
-          const seats = await transaction.seat.findMany({
-            where: {
-              seat_id: { in: uniqueSeatIds },
-              hall_id: schedule.hall_id,
-              seat_status: "Available",
+          const candidate = item as {
+            foodId?: unknown;
+            name?: unknown;
+            price?: unknown;
+            quantity?: unknown;
+          };
+
+          const name =
+            typeof candidate.name === "string" ? candidate.name.trim() : "";
+          const price = Number(candidate.price);
+          const quantity = Number(candidate.quantity);
+
+          if (
+            !name ||
+            !Number.isFinite(price) ||
+            price < 0 ||
+            !Number.isFinite(quantity) ||
+            quantity <= 0
+          ) {
+            return [];
+          }
+
+          return [
+            {
+              name,
+              price,
+              quantity,
             },
-          });
+          ];
+        });
 
-          if (seats.length !== uniqueSeatIds.length) {
-            throw new Error("SEAT_NOT_AVAILABLE");
-          }
+        const foodEntries = [] as Array<{
+          food_id: number;
+          food_quantity: number;
+          food_unit_price: Prisma.Decimal;
+          food_subtotal: Prisma.Decimal;
+        }>;
 
-          const alreadyBooked = await transaction.bookingSeat.findMany({
+        let foodSubtotal = 0;
+
+        for (const food of parsedFoodItems) {
+          const normalizedName = food.name.trim();
+
+          let foodRecord = await transaction.foodItem.findFirst({
             where: {
-              seat_id: { in: uniqueSeatIds },
-              booking: { schedule_id: scheduleId },
-            },
-            select: { seat_id: true },
-          });
-
-          if (alreadyBooked.length > 0) {
-            throw new Error("SEAT_ALREADY_BOOKED");
-          }
-
-          const confirmedStatus = await transaction.bookingStatus.findUnique({
-            where: { booking_status_name: "Confirmed" },
-          });
-          const totalAmount = Number(schedule.ticket_price) * seats.length;
-
-          return transaction.booking.create({
-            data: {
-              user_id: req.user!.sub,
-              schedule_id: scheduleId,
-              total_amount: new Prisma.Decimal(totalAmount.toFixed(2)),
-              booking_status_id: confirmedStatus?.booking_status_id,
-              booking_seats: {
-                create: seats.map((seat) => ({
-                  seat_id: seat.seat_id,
-                  seat_price: schedule.ticket_price,
-                })),
+              food_name: {
+                equals: normalizedName,
+                mode: "insensitive",
               },
             },
-            include: { booking_seats: { include: { seat: true } } },
           });
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
 
-      return res.status(201).json({
-        ok: true,
-        bookingId: booking.booking_id,
-        totalAmount: Number(booking.total_amount),
-        seats: booking.booking_seats.map(({ seat }) => seat.seat_number),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (message === "SHOWTIME_NOT_FOUND") {
-        return res.status(404).json({ ok: false, message: "Showtime not found." });
-      }
-      if (message === "SEAT_NOT_AVAILABLE" || message === "SEAT_ALREADY_BOOKED") {
-        return res.status(409).json({ ok: false, message: "One or more selected seats are no longer available." });
-      }
-      console.error("Failed to create booking:", error);
-      return res.status(500).json({ ok: false, message: "Failed to create booking." });
+          if (!foodRecord) {
+            let category = await transaction.foodCategory.findFirst({
+              where: {
+                food_category_name: "Cinema Snacks",
+              },
+            });
+
+            if (!category) {
+              category = await transaction.foodCategory.create({
+                data: {
+                  food_category_name: "Cinema Snacks",
+                  food_category_description: "Movie snacks and drinks",
+                },
+              });
+            }
+
+            foodRecord = await transaction.foodItem.create({
+              data: {
+                food_name: normalizedName,
+                food_price: new Prisma.Decimal(food.price.toFixed(2)),
+                food_category_id: category.food_category_id,
+                food_stock: food.quantity,
+                food_status: "Available",
+              },
+            });
+          }
+
+          const unitPrice = Number(foodRecord.food_price || food.price);
+          const subtotal = unitPrice * food.quantity;
+          foodSubtotal += subtotal;
+
+          foodEntries.push({
+            food_id: foodRecord.food_id,
+            food_quantity: food.quantity,
+            food_unit_price: new Prisma.Decimal(unitPrice.toFixed(2)),
+            food_subtotal: new Prisma.Decimal(subtotal.toFixed(2)),
+          });
+        }
+
+        const totalAmount =
+          Number(schedule.ticket_price) * seats.length + foodSubtotal;
+
+        const booking = await transaction.booking.create({
+          data: {
+            user_id: req.user!.sub,
+            schedule_id: scheduleId,
+            total_amount: new Prisma.Decimal(totalAmount.toFixed(2)),
+            booking_status_id: confirmedStatus?.booking_status_id,
+            booking_seats: {
+              create: seats.map((seat) => ({
+                seat_id: seat.seat_id,
+                seat_price: schedule.ticket_price,
+              })),
+            },
+            booking_foods: foodEntries.length
+              ? {
+                  create: foodEntries.map((entry) => ({
+                    food_id: entry.food_id,
+                    food_quantity: entry.food_quantity,
+                    food_unit_price: entry.food_unit_price,
+                    food_subtotal: entry.food_subtotal,
+                  })),
+                }
+              : undefined,
+          },
+          include: {
+            booking_seats: { include: { seat: true } },
+            booking_foods: { include: { food_item: true } },
+          },
+        });
+
+        const methodRecord = await transaction.paymentMethod.upsert({
+          where: { payment_method_name: paymentMethod },
+          update: {},
+          create: {
+            payment_method_name: paymentMethod,
+            payment_method_description: `Payment method selected by user: ${paymentMethod}`,
+          },
+        });
+
+        const paymentStatus = await transaction.paymentStatus.upsert({
+          where: { payment_status_name: "Pending" },
+          update: {},
+          create: {
+            payment_status_name: "Pending",
+            payment_status_description: "Payment is waiting to be processed.",
+          },
+        });
+
+        await transaction.payment.create({
+          data: {
+            booking_id: booking.booking_id,
+            payment_method_id: methodRecord.payment_method_id,
+            payment_status_id: paymentStatus.payment_status_id,
+            payment_amount: new Prisma.Decimal(totalAmount.toFixed(2)),
+          },
+        });
+
+        return booking;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return res.status(201).json({
+      ok: true,
+      bookingId: booking.booking_id,
+      totalAmount: Number(booking.total_amount),
+      seats: booking.booking_seats.map(({ seat }) => seat.seat_number),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "SHOWTIME_NOT_FOUND") {
+      return res
+        .status(404)
+        .json({ ok: false, message: "Showtime not found." });
     }
-  },
-);
+    if (message === "SEAT_NOT_AVAILABLE" || message === "SEAT_ALREADY_BOOKED") {
+      return res.status(409).json({
+        ok: false,
+        message: "One or more selected seats are no longer available.",
+      });
+    }
+    console.error("Failed to create booking:", error);
+    return res
+      .status(500)
+      .json({ ok: false, message: "Failed to create booking." });
+  }
+});
 
 // ======================================================
 // SEAT SELECTION API

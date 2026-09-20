@@ -1,9 +1,32 @@
 import express, { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { searchTMDBMovies } from "../services/tmdbService";
 
 const router = express.Router();
 
 const prisma = new PrismaClient();
+
+router.get("/search", async (req: Request, res: Response) => {
+  const query = String(req.query.query || "").trim();
+
+  if (query.length < 2) {
+    return res.status(400).json({
+      ok: false,
+      message: "Search query must contain at least 2 characters.",
+    });
+  }
+
+  try {
+    const data = await searchTMDBMovies(query);
+    return res.json({ ok: true, ...data });
+  } catch (error) {
+    console.error("Failed to search TMDB movies:", error);
+    return res.status(503).json({
+      ok: false,
+      message: "Movie search is temporarily unavailable.",
+    });
+  }
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -144,7 +167,8 @@ router.get("/:id", async (req: Request, res: Response) => {
 
     return res.status(503).json({
       ok: false,
-      message: "Movie showtimes are temporarily unavailable. Check the database connection.",
+      message:
+        "Movie showtimes are temporarily unavailable. Check the database connection.",
     });
   }
 });

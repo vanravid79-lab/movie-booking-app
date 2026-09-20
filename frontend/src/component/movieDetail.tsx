@@ -274,7 +274,7 @@ export default function MovieDetail() {
   if (movieError || !movie) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-500">
-        {movieError || "Movie not found."}
+        {movieError || "Loading movie details..."}
       </div>
     );
   }

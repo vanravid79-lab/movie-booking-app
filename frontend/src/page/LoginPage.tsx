@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaUserShield, FaUser, FaLock, FaEnvelope, FaPhone, FaUserPlus, FaSignInAlt } from "react-icons/fa";
+import {
+  FaUserShield,
+  FaUser,
+  FaLock,
+  FaEnvelope,
+  FaPhone,
+  FaUserPlus,
+  FaSignInAlt,
+} from "react-icons/fa";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5059/api";
 
@@ -63,7 +71,10 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
-        throw new Error(data.message || `${mode === "register" ? "Registration" : "Login"} failed.`);
+        throw new Error(
+          data.message ||
+            `${mode === "register" ? "Registration" : "Login"} failed.`,
+        );
       }
 
       // Store auth session
@@ -74,7 +85,7 @@ export default function LoginPage() {
       setSuccess(
         mode === "register"
           ? "Account registered successfully! Redirecting..."
-          : "Logged in successfully! Redirecting..."
+          : "Logged in successfully! Redirecting...",
       );
 
       setTimeout(() => {
@@ -89,8 +100,10 @@ export default function LoginPage() {
           navigate("/user");
         }
       }, 700);
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -175,15 +188,15 @@ export default function LoginPage() {
               {mode === "register"
                 ? `Create ${role === "admin" ? "Admin" : "User"} Account`
                 : role === "admin"
-                ? "Admin Management Portal"
-                : "Welcome Back"}
+                  ? "Admin Management Portal"
+                  : "Welcome Back"}
             </h2>
             <p className="mt-1 text-sm text-zinc-400">
               {mode === "register"
                 ? "Fill in your details to register directly in the database"
                 : role === "admin"
-                ? "Sign in with administrator credentials"
-                : "Sign in to book tickets and manage reservations"}
+                  ? "Sign in with administrator credentials"
+                  : "Sign in to book tickets and manage reservations"}
             </p>
           </div>
 
@@ -230,7 +243,9 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={role === "admin" ? "admin@cinema.com" : "user@cinema.com"}
+                  placeholder={
+                    role === "admin" ? "admin@cinema.com" : "user@cinema.com"
+                  }
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                 />
               </div>
@@ -262,7 +277,9 @@ export default function LoginPage() {
                 <FaLock className="absolute left-3.5 h-4 w-4 text-zinc-500" />
                 <input
                   type="password"
-                    autoComplete={mode === "register" ? "new-password" : "current-password"}
+                  autoComplete={
+                    mode === "register" ? "new-password" : "current-password"
+                  }
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -284,8 +301,8 @@ export default function LoginPage() {
               {loading
                 ? "Processing..."
                 : mode === "register"
-                ? `Create ${role === "admin" ? "Admin" : "User"} Account`
-                : `Sign In as ${role === "admin" ? "Admin" : "User"}`}
+                  ? `Create ${role === "admin" ? "Admin" : "User"} Account`
+                  : `Sign In as ${role === "admin" ? "Admin" : "User"}`}
             </button>
           </form>
 
