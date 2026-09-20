@@ -29,6 +29,7 @@ const formatLocalDate = (date: Date): string => {
 export function MovieCard({ selectedDate }: MovieCardProps) {
   const [movies, setMovies] = useState<AllMovie[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [offline, setOffline] = useState<boolean>(false);
 
   useEffect(() => {
     if (!selectedDate) return;
@@ -47,25 +48,32 @@ export function MovieCard({ selectedDate }: MovieCardProps) {
     // Filter by high popularity and minimum vote count
     const url = `https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=en-US&page=1&sort_by=popularity.desc&vote_count.gte=100&primary_release_date.gte=${gteDate}&primary_release_date.lte=${selectedDate}`;
 
-    fetch(url, {
-      method: "GET",
-      signal: controller.signal,
-      headers: {
-        accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
+    const request =
+      !token || !navigator.onLine
+        ? Promise.reject(new Error("TMDB_UNAVAILABLE"))
+        : fetch(url, {
+            method: "GET",
+            signal: controller.signal,
+            headers: {
+              accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+    request
       .then((res) => {
         if (!res.ok) throw new Error("TMDB Response Error");
         return res.json();
       })
       .then((data: TMDBData) => {
         setMovies(data.results || []);
+        setOffline(false);
         setLoading(false);
       })
       .catch((err) => {
         if (err.name !== "AbortError") {
-          console.error("TMDB Fetch Error:", err);
+          setMovies([]);
+          setOffline(true);
           setLoading(false);
         }
       });
@@ -81,6 +89,10 @@ export function MovieCard({ selectedDate }: MovieCardProps) {
       {loading ? (
         <div className="flex h-48 items-center justify-center text-zinc-400">
           Loading popular movies...
+        </div>
+      ) : offline ? (
+        <div className="flex h-48 items-center justify-center text-center text-zinc-400">
+          Movie data is unavailable while offline.
         </div>
       ) : movies.length === 0 ? (
         <div className="flex h-48 items-center justify-center text-zinc-400">

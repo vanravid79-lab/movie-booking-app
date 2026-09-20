@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaUserShield, FaUser, FaLock, FaEnvelope, FaPhone, FaUserPlus, FaSignInAlt } from "react-icons/fa";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5059/api";
+
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [role, setRole] = useState<"user" | "admin">("user");
@@ -41,8 +43,8 @@ export default function LoginPage() {
 
     const url =
       mode === "register"
-        ? "http://localhost:5059/api/auth/register"
-        : "http://localhost:5059/api/auth/login";
+        ? `${API_URL}/auth/register`
+        : `${API_URL}/auth/login`;
 
     const payload =
       mode === "register"
@@ -260,6 +262,7 @@ export default function LoginPage() {
                 <FaLock className="absolute left-3.5 h-4 w-4 text-zinc-500" />
                 <input
                   type="password"
+                    autoComplete={mode === "register" ? "new-password" : "current-password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

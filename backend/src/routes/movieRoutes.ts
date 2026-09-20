@@ -46,8 +46,16 @@ router.get("/:id", async (req: Request, res: Response) => {
       });
     }
 
+    const parsedDate = new Date(`${date}T00:00:00.000Z`);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid calendar date.",
+      });
+    }
+
     // Start and end of selected day
-    const startOfDay = new Date(`${date}T00:00:00.000Z`);
+    const startOfDay = parsedDate;
 
     const endOfDay = new Date(`${date}T23:59:59.999Z`);
 
@@ -134,9 +142,9 @@ router.get("/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Failed to fetch movie showtimes:", error);
 
-    return res.status(500).json({
+    return res.status(503).json({
       ok: false,
-      message: "Failed to fetch movie showtimes.",
+      message: "Movie showtimes are temporarily unavailable. Check the database connection.",
     });
   }
 });
